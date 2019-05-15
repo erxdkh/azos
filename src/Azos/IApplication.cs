@@ -33,14 +33,21 @@ namespace Azos
      bool ForceInvariantCulture{ get; }
 
      /// <summary>
-     /// Provides access to "environment-name" attribute, e.g. "DEV" vs "PROD"
+     /// Provides access to "environment-name" attribute, e.g. "DEV" / "TEST" / "PROD" etc.
      /// </summary>
      string EnvironmentName { get; }
+
+
+     /// <summary>
+     /// Application Id is a system unique identifier of this application type (not to be confused with instance).
+     /// Used in cluster/distributed systems for telemetry warehousing among other things
+     /// </summary>
+     Atom AppId { get;}
 
      /// <summary>
      /// Returns unique identifier of this running instance
      /// </summary>
-     Guid InstanceID { get; }
+     Guid InstanceId { get; }
 
      /// <summary>
      /// Returns true when this app container allows nesting of another one
@@ -215,6 +222,13 @@ namespace Azos
      /// </summary>
      /// <returns>True if notifiable instance was found and removed</returns>
      bool UnregisterAppFinishNotifiable(IApplicationFinishNotifiable notifiable);
+
+     /// <summary>
+     /// Performs resolution of the named application variable into its value.
+     /// This mechanism is referenced by Configuration environment vars which start with app prefix
+     /// which is "App." by default, so $(~App.InstanceID) will resolve to IApplication.InstanceID etc.
+     /// </summary>
+     bool ResolveNamedVar(string name, out string value);
   }
 
 

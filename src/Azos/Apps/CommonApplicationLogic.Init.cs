@@ -84,7 +84,11 @@ namespace Azos.Apps { partial class CommonApplicationLogic {
     {
       ConfigAttribute.Apply(this, m_ConfigRoot);
 
-      m_Name = m_ConfigRoot.AttrByName(CONFIG_APP_NAME_ATTR).ValueAsString(GetType().FullName);
+      m_Name = m_ConfigRoot.AttrByName(CONFIG_NAME_ATTR).ValueAsString(GetType().FullName);
+
+      var appid = m_ConfigRoot.AttrByName(CONFIG_ID_ATTR).Value;
+      if (appid.IsNotNullOrWhiteSpace())
+        m_AppId =  Atom.Encode(appid);
 
       Debugging.DefaultDebugAction = Debugging.ReadDefaultDebugActionFromConfig();
       Debugging.TraceDisabled      = Debugging.ReadTraceDisableFromConfig();

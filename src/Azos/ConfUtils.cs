@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 
 using Azos.Conf;
+using Azos.Serialization.JSON;
 
 namespace Azos
 {
@@ -17,7 +18,7 @@ namespace Azos
   {
 
     /// <summary>
-    /// Tries to convert object to laconic config content and parse i. This is a shortcut to ObjectValueConversion.AsLaconicConfig(object)
+    /// Tries to convert object to laconic config content and parse it. This is a shortcut to ObjectValueConversion.AsLaconicConfig(object)
     /// </summary>
     public static ConfigSectionNode AsLaconicConfig(this string val,
                                                     ConfigSectionNode dflt = null,
@@ -125,6 +126,22 @@ namespace Azos
       return scopeConfig.Root.EvaluateValueVariables(line);
     }
 
+    /// <summary>
+    /// Puts the specified named attributes into JsonMap. If attribute is not found it is skipped
+    /// </summary>
+    public static JsonDataMap ToMapOfAttrs(this IConfigSectionNode node, params string[] attrNames)
+    {
+      var result = new JsonDataMap(false);
+      if (node!=null && attrNames!=null)
+        attrNames.ForEach( a =>
+        {
+          var attr = node.AttrByName(a) ;
+          if (attr.Exists) result[attr.Name] = attr.Value;
+        });
+
+      return result;
+
+    }
 
   }
 }

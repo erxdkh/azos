@@ -59,5 +59,167 @@ namespace Azos.Tests.Nub
       Aver.IsFalse("def".IsOneOf(new List<string> { "abc", "  def  ", "diff"}));
       Aver.IsTrue("def".IsOneOf(new List<string> { "abc", "def", "diff"}));
     }
+
+    [Run]
+    public void ToLinuxLines()
+    {
+      Aver.AreEqual( "I walk\n lines\n\n", "I walk\r\n lines\r\n\r\n".ToLinuxLines() );
+    }
+
+    [Run]
+    public void ToWindowsLines_FromLinux()
+    {
+      Aver.AreEqual("I walk\r\n lines\r\n\r\n", "I walk\n lines\n\n".ToWindowsLines());
+    }
+
+    [Run]
+    public void ToWindowsLines_FromMixed()
+    {
+      Aver.AreEqual("I walk\r\n lines\r\n\r\n", "I walk\n lines\r\n\n".ToWindowsLines());
+    }
+
+    [Run]
+    public void DiffStrings_1()
+    {
+      var diff = "abcd".DiffStrings("abcd");
+      Console.WriteLine( diff );
+      Aver.IsTrue( diff.Contains("Identical"));
+    }
+
+    [Run]
+    public void DiffStrings_2()
+    {
+      var diff = "abcde".DiffStrings("abcd");
+      Console.WriteLine(diff);
+      Aver.IsTrue(diff.Contains("A is longer than B by 1 chars"));
+    }
+
+    [Run]
+    public void DiffStrings_3()
+    {
+      var diff = "abcd".DiffStrings("abcde");
+      Console.WriteLine(diff);
+      Aver.IsTrue(diff.Contains("B is longer than A by 1 chars"));
+    }
+
+    [Run]
+    public void DiffStrings_4()
+    {
+      Console.WriteLine("abcd\nef".DiffStrings("ab\n\rcdef"));
+    }
+
+    [Run]
+    public void DiffStrings_5()
+    {
+      Console.WriteLine("ab8-0er7t-98e7wr-9t87ew-98r7t-98e7wrtcd\nef".DiffStrings("ab\n\r3453485rcdef", 5));
+    }
+
+    [Run]
+    public void DiffStrings_6()
+    {
+      Console.WriteLine("abc".DiffStrings(null));
+    }
+
+    [Run]
+    public void DiffStrings_7()
+    {
+      Console.WriteLine(((string)null).DiffStrings("abc"));
+    }
+
+    [Run]
+    public void DiffStrings_8()
+    {
+      Console.WriteLine(((string)null).DiffStrings((string)null));
+    }
+
+    [Run]
+    public void TrimAll_1()
+    {
+      Aver.AreEqual("abcd", "\ra      b\n\n\n\nc d\r\r   ".TrimAll());
+    }
+
+    [Run]
+    public void TrimAll_2()
+    {
+      Aver.AreEqual("bcd", "aa aba   aaa acaa aaa adaaaaa aaaaaa".TrimAll('a', ' '));
+    }
+
+    [Run]
+    public void SplitKVP_1()
+    {
+      var got = "key=value".SplitKVP();
+      Aver.AreEqual("key", got.Key);
+      Aver.AreEqual("value", got.Value);
+    }
+
+
+    [Run]
+    public void SplitKVP_2()
+    {
+      var got = "key=value".SplitKVP('-');
+      Aver.AreEqual("key=value", got.Key);
+      Aver.AreEqual("", got.Value);
+    }
+
+    [Run]
+    public void SplitKVP_3()
+    {
+      var got = "key=value=9".SplitKVP('=');
+      Aver.AreEqual("key", got.Key);
+      Aver.AreEqual("value=9", got.Value);
+    }
+
+    [Run]
+    public void SplitKVP_4()
+    {
+      var got = "key=value".SplitKVP(':','=');
+      Aver.AreEqual("key", got.Key);
+      Aver.AreEqual("value", got.Value);
+
+      got = "key:1=value:1".SplitKVP('=', ':');
+      Aver.AreEqual("key:1", got.Key);
+      Aver.AreEqual("value:1", got.Value);
+    }
+
+    [Run]
+    public void SplitKVP_5()
+    {
+      var got = "key=value".SplitKVP(':', '=', '-');
+      Aver.AreEqual("key", got.Key);
+      Aver.AreEqual("value", got.Value);
+
+      got = "key:value".SplitKVP(':', '=', '-');
+      Aver.AreEqual("key", got.Key);
+      Aver.AreEqual("value", got.Value);
+
+      got = "key-value".SplitKVP(':', '=', '-');
+      Aver.AreEqual("key", got.Key);
+      Aver.AreEqual("value", got.Value);
+    }
+
+    [Run]
+    public void SplitKVP_6()
+    {
+      var got = "".SplitKVP('=');
+      Aver.AreEqual("", got.Key);
+      Aver.AreEqual("", got.Value);
+    }
+
+    [Run]
+    public void SplitKVP_7()
+    {
+      var got = "key=".SplitKVP('=');
+      Aver.AreEqual("key", got.Key);
+      Aver.AreEqual("", got.Value);
+    }
+
+    [Run]
+    public void SplitKVP_8()
+    {
+      var got = "=value".SplitKVP('=');
+      Aver.AreEqual("", got.Key);
+      Aver.AreEqual("value", got.Value);
+    }
+
   }
 }

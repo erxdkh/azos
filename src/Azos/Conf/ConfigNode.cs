@@ -6,7 +6,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.IO;
 
 using Azos.Data;
 using Azos.Text;
@@ -562,23 +562,45 @@ namespace Azos.Conf
             }
 
 
+            public Atom ValueAsAtom(Atom dflt, bool verbatim = false)
+            {
+              var val = verbatim ? VerbatimValue : Value;
 
-              /// <summary>
-              /// Tries to get value as specified type or throws if it can not be converted
-              /// </summary>
-              public object ValueAsType(Type tp, bool verbatim = false, bool strict = true)
+              return val.AsAtom(dflt);
+            }
+
+
+            public Atom? ValueAsNullableAtom(Atom? dflt = null, bool verbatim = false)
+            {
+              var val = verbatim ? VerbatimValue : Value;
+
+              return val.AsNullableAtom(dflt);
+            }
+
+            public Uri ValueAsUri(Uri dflt, bool verbatim = false)
+            {
+              var val = verbatim ? VerbatimValue : Value;
+
+              return val.AsUri(dflt);
+            }
+
+
+            /// <summary>
+            /// Tries to get value as specified type or throws if it can not be converted
+            /// </summary>
+            public object ValueAsType(Type tp, bool verbatim = false, bool strict = true)
+            {
+              try
               {
-                try
-                {
-                  var val = verbatim ? VerbatimValue : Value;
+                var val = verbatim ? VerbatimValue : Value;
 
-                  return val.AsType(tp, strict);
-                }
-                catch(Exception error)
-                {
-                  throw new ConfigException(string.Format(StringConsts.CONFIGURATION_VALUE_COULD_NOT_BE_GOTTEN_AS_TYPE_ERROR, this.Name, tp.FullName), error);
-                }
+                return val.AsType(tp, strict);
               }
+              catch(Exception error)
+              {
+                throw new ConfigException(string.Format(StringConsts.CONFIGURATION_VALUE_COULD_NOT_BE_GOTTEN_AS_TYPE_ERROR, this.Name, tp.FullName), error);
+              }
+            }
 
 
 
@@ -636,7 +658,7 @@ namespace Azos.Conf
   /// Represents configuration section node. This class is thread safe
   /// </summary>
   [Serializable]
-  public sealed class ConfigSectionNode : ConfigNode, IConfigSectionNode
+  public sealed class ConfigSectionNode : ConfigNode, IConfigSectionNode, IJsonWritable
   {
     #region .ctor
 
@@ -677,11 +699,7 @@ namespace Azos.Conf
           }
 
         }
-
-
     #endregion
-
-
 
     #region Private Fields
      internal ConfigSectionNodeList m_Children = new ConfigSectionNodeList();
@@ -846,6 +864,12 @@ namespace Azos.Conf
     #endregion
 
     #region Public
+
+        void IJsonWritable.WriteAsJson(TextWriter wri, int nestingLevel, JsonWritingOptions options)
+        {
+          var map = this.ToConfigurationJSONDataMap();
+          JsonWriter.WriteMap(wri, map, nestingLevel, options);
+        }
 
         /// <summary>
         /// Deletes this section from its parent
@@ -1058,19 +1082,6 @@ namespace Azos.Conf
             if (osect.IsSameName(rules.SectionClearName))
               continue;
 
-            //var matches = children.Where(child => child.IsSameName(osect)).ToList();
-            //if (matches.Count>1)
-            //{
-            //  matches = matches.Where(child => child.AttrByName( rules.SectionMatchAttrName).ValueAsString()
-            //                                                      .EqualsIgnoreCase(osect.AttrByName(rules.SectionMatchAttrName).ValueAsString())).ToList();
-            //}
-
-            //if (matches.Count>0)
-            // matches[0].OverrideBy(osect, rules);
-            //else
-            // AddChildNode(osect.Name, osect.VerbatimValue).OverrideBy(osect, rules);
-
-            //20160329 DKh
             var match = children.Where(child =>
                                  child.IsSameName(osect) &&
                                  child.AttrByName( rules.SectionMatchAttrName ).Value
@@ -1086,8 +1097,6 @@ namespace Azos.Conf
               AddChildNode(osect.Name, osect.VerbatimValue).OverrideBy(osect, rules);
             else
               match.OverrideBy(osect, rules);
-
-
 
           }
         }
@@ -1346,13 +1355,19 @@ namespace Azos.Conf
                   var VAR_END = m_Configuration.Variable_END;
                   var VAR_PATH_MOD = m_Configuration.Variable_PATH_MOD;
 
+                       const int MAX_ITERATIONS = 1_000;
+                       var iteration=0;
                        while(true)
                        {
+                         if (iteration++ > MAX_ITERATIONS)
+                           throw new ConfigException(StringConsts.CONFIG_INFINITE_VARS_ERROR.Args(value.TakeFirstChars(32, "..."), MAX_ITERATIONS));
+
                          var idxs = value.IndexOf(VAR_START);
                          if (idxs<0) break;
                          var idxe = value.IndexOf(VAR_END, idxs);
                          if (idxe<=idxs) break;
 
+                         var originalDecl = value.Substring(idxs, idxe - idxs + VAR_END.Length);
                          var vname = value.Substring(idxs + VAR_START.Length, 1 + idxe - idxs - VAR_START.Length - VAR_END.Length).Trim();
 
                          if (vlist.Contains(vname))
@@ -1363,11 +1378,11 @@ namespace Azos.Conf
                          {
                              if (vname.StartsWith(VAR_PATH_MOD))
                              {
-                               value = replacePaths(value, VAR_START + vname + VAR_END, getValueFromMacroOrEnvVarOrNavigationWithCheck(vname.Replace(VAR_PATH_MOD, string.Empty)));
+                               value = replacePaths(value, originalDecl, getValueFromMacroOrEnvVarOrNavigationWithCheck(vname.Replace(VAR_PATH_MOD, string.Empty)));
                              }
                              else
                              {
-                               value = value.Replace(VAR_START + vname + VAR_END, getValueFromMacroOrEnvVarOrNavigationWithCheck(vname));
+                               value = value.Replace(originalDecl, getValueFromMacroOrEnvVarOrNavigationWithCheck(vname));
                              }
                          }
                          finally
@@ -1416,9 +1431,9 @@ namespace Azos.Conf
         /// <summary>
         /// Serializes configuration tree rooted at this node into JSON configuration format and returns it as a string
         /// </summary>
-        public string ToJSONString(Azos.Serialization.JSON.JSONWritingOptions options = null)
+        public string ToJSONString(Azos.Serialization.JSON.JsonWritingOptions options = null)
         {
-          return this.ToConfigurationJSONDataMap().ToJSON(options);
+          return this.ToConfigurationJSONDataMap().ToJson(options);
         }
 
         /// <summary>
@@ -1442,6 +1457,29 @@ namespace Azos.Conf
           }
         }
 
+
+    /// <summary>
+    /// Calls ProcessIncludePragmas(recurse: true)in a loop until all includes are processed or max nesting depth is exceeded.
+    /// For all practical reasons the nesting level should not exceed 7 levels.
+    /// </summary>
+    /// <param name="configLevelName">Optional logic name of config level which gets included in exception text in case of error</param>
+    /// <param name="includePragma">Optional include pragma section name. If null, the default is used</param>
+    public void ProcessAllExistingIncludes(string configLevelName = null,  string includePragma = null)
+    {
+      const int MAX_INCLUDE_DEPTH = 7;
+
+      if (configLevelName.IsNullOrWhiteSpace()) configLevelName = StringConsts.UNKNOWN_STRING;
+      try
+      {
+        for (int count = 0; this.ProcessIncludePragmas(true, includePragma); count++)
+          if (count >= MAX_INCLUDE_DEPTH)
+             throw new ConfigException(StringConsts.CONFIG_INCLUDE_PRAGMA_DEPTH_ERROR.Args(MAX_INCLUDE_DEPTH));
+      }
+      catch(Exception error)
+      {
+        throw new ConfigException(StringConsts.CONFIGURATION_INCLUDE_PRAGMA_ERROR.Args(configLevelName, error.ToMessageWithType()), error);
+      }
+    }
 
     /// <summary>
     /// Replaces all include pragmas - sections with specified names ('_include' by default), with pointed to configuration file content
@@ -1526,9 +1564,9 @@ namespace Azos.Conf
         /// In other words some ConfigSectionNode information can not be reflected in corresponding JSONDataMap, for example
         ///  this method overwrites duplicate key names and does not support section values
         /// </summary>
-        public JSONDataMap ToJSONDataMap()
+        public JsonDataMap ToJSONDataMap()
         {
-          var map = new JSONDataMap();
+          var map = new JsonDataMap();
 
           if (this.Exists)
             buildSectionMap(this, map);
@@ -1536,7 +1574,7 @@ namespace Azos.Conf
           return map;
         }
 
-                  private static void buildSectionMap(ConfigSectionNode node, JSONDataMap map)
+                  private static void buildSectionMap(ConfigSectionNode node, JsonDataMap map)
                   {
                     foreach (var attr in node.Attributes)
                     {
@@ -1545,7 +1583,7 @@ namespace Azos.Conf
 
                     foreach (var childNode in node.Children)
                     {
-                      var childMap = new JSONDataMap();
+                      var childMap = new JsonDataMap();
                       map[childNode.Name] = childMap;
                       buildSectionMap(childNode, childMap);
                     }
@@ -1555,9 +1593,9 @@ namespace Azos.Conf
          /// Returns this config node as JSON data map suitable for making JSONConfiguration.
          /// Contrast with ToJSONDataMap
          /// </summary>
-         public JSONDataMap ToConfigurationJSONDataMap()
+         public JsonDataMap ToConfigurationJSONDataMap()
          {
-           var root = new JSONDataMap(false);
+           var root = new JsonDataMap(false);
 
            if (this.Exists)
              root[this.Name] = buildSectionConfigJSONDataMap(this);
@@ -1565,9 +1603,9 @@ namespace Azos.Conf
            return root;
          }
 
-               private static JSONDataMap buildSectionConfigJSONDataMap(ConfigSectionNode sect)
+               private static JsonDataMap buildSectionConfigJSONDataMap(ConfigSectionNode sect)
                {
-                 var result = new JSONDataMap(false);
+                 var result = new JsonDataMap(false);
 
                  if (sect.VerbatimValue.IsNotNullOrWhiteSpace())
                    result[JSONConfiguration.SECTION_VALUE_ATTR] = sect.VerbatimValue;

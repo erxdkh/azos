@@ -5,23 +5,27 @@
 </FILE_LICENSE>*/
 
 using System;
-
+using System.Collections;
 using System.Globalization;
 using System.IO;
 
+using Azos.Data;
 using Azos.Serialization.JSON;
 
 namespace Azos.Standards
 {
+
+#warning Needs revision, why is .Value needed?
   /// <summary>
   /// Represents weight with unit type.
-  /// All operations are done with presision of 1 milligramm
+  /// All operations are done with precision of 1 milligram
   /// </summary>
-  public struct Weight : IEquatable<Weight>, IComparable<Weight>, IJSONWritable, IFormattable
+  public struct Weight : IEquatable<Weight>, IComparable<Weight>, IJsonWritable, IJsonReadable
   {
     public enum UnitType
     {
-      G = 0,
+      Unspecified = 0,
+      G,
       Oz,
       Lb,
       Kg
@@ -135,13 +139,6 @@ namespace Azos.Standards
       return "{0} {1}".Args(Value.ToString("#,#.###"), UnitName);
     }
 
-    public String ToString(String format, IFormatProvider formatProvider)
-    {
-      throw new NotImplementedException();
-    }
-
-    #region INTERFACES
-
     public bool Equals(Weight other)
     {
       return (ValueInGrams == other.ValueInGrams);
@@ -152,15 +149,29 @@ namespace Azos.Standards
       return ValueInGrams.CompareTo(other.ValueInGrams);
     }
 
-    public void WriteAsJSON(TextWriter wri, int nestingLevel, JSONWritingOptions options = null)
+    void IJsonWritable.WriteAsJson(TextWriter wri, int nestingLevel, JsonWritingOptions options)
     {
-      JSONDataMap map = new JSONDataMap { { "unit", UnitName }, { "value", Value } };
-      map.ToJSON(wri, options);
+      JsonWriter.WriteMap(wri, nestingLevel, options, new DictionaryEntry("unit", UnitName), new  DictionaryEntry("value", Value));
     }
 
-    #endregion
+    (bool match, IJsonReadable self) IJsonReadable.ReadAsJson(object data, bool fromUI, JsonReader.NameBinding? nameBinding)
+    {
+      if (data is JsonDataMap map)
+      {
+        try
+        {
+          return (true, new Weight(map["value"].AsDecimal(handling: ConvertErrorHandling.Throw),
+                                   map["unit"].AsEnum(UnitType.Unspecified, handling: ConvertErrorHandling.Throw)));
+        }
+        catch
+        {
+          //passthrough false
+        }
+      }
 
-    #region OPERATORS
+      return (false, null);
+    }
+
 
     public static Weight operator +(Weight obj1, Weight obj2)
     {
@@ -215,8 +226,6 @@ namespace Azos.Standards
     {
       return obj1.ValueInGrams < obj2.ValueInGrams;
     }
-
-    #endregion
 
     private static void getPair(string val, out string valueString, out string unitString)
     {

@@ -17,7 +17,7 @@ using Azos.Serialization.JSON;
 namespace Azos.Web
 {
   /// <summary>
-  /// Faciliates working with multipart encoding
+  /// Facilitates working with multipart encoding
   /// </summary>
   public sealed class Multipart
   {
@@ -161,7 +161,7 @@ namespace Azos.Web
       public static string ParseContentType(string contentType)
       {
         if (contentType.IsNotNullOrWhiteSpace() && contentType.StartsWith(BOUNDARY_HEADER_START, StringComparison.InvariantCultureIgnoreCase))
-          return contentType.Substring(BOUNDARY_HEADER_START.Length);
+          return contentType.Substring(BOUNDARY_HEADER_START.Length).Trim('"','\'');
         else
           return null;
       }
@@ -201,9 +201,9 @@ namespace Azos.Web
 
     #region Public
 
-      public JSONDataMap ToJSONDataMap()
+      public JsonDataMap ToJSONDataMap()
       {
-        var result = new JSONDataMap(false);
+        var result = new JsonDataMap(false);
 
         foreach (var part in m_Parts)
         {

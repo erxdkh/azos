@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.IO;
+using System.Threading.Tasks;
 
 using Azos.Web;
 using Azos.Graphics;
@@ -17,7 +18,6 @@ using Azos.Data;
 using Azos.Serialization.JSON;
 using Azos.Wave.Mvc;
 using Azos.Wave.Templatization;
-
 
 namespace Azos.Wave.Handlers
 {
@@ -81,6 +81,22 @@ namespace Azos.Wave.Handlers
               if (!handled)
               {
                result = mi.Invoke(target, args);
+
+               //-----------------
+               // 20190303 DKh temp code until Wave is refactored to full async pipeline
+               //-----------------
+               if (result is Task task)
+               {
+                 while(App.Active && !Disposed && !task.IsCompleted && !task.IsFaulted &&!task.IsCanceled) task.Wait(150);//temporary code due to sync pipeline
+
+                 var taskResult = task.TryGetCompletedTaskResultAsObject();
+                 if (taskResult.ok) result = taskResult.result;//unwind the result
+                 else if (task.IsCanceled) result = null;
+                 else if (task.IsFaulted) throw task.Exception;
+               }
+               //-----------------
+
+
                result = target.AfterActionInvocation(work, action, mi, args, result);
               }
             }
@@ -91,10 +107,16 @@ namespace Azos.Wave.Handlers
           }
           catch(Exception error)
           {
-            if (error is TargetInvocationException)
+            if (error is TargetInvocationException tie)
             {
-              var cause = ((TargetInvocationException)error).InnerException;
+              var cause = tie.InnerException;
               if (cause!=null) error = cause;
+            }
+
+            if (error is AggregateException age)
+            {
+              var cause = age.Flatten().InnerException;
+              if (cause != null) error = cause;
             }
             throw MvcActionException.WrapActionBodyError(target.GetType().FullName, action, error);
           }
@@ -187,7 +209,7 @@ namespace Azos.Wave.Handlers
       /// <summary>
       /// Fills method invocation param array with args doing some interpretation for widely used types like JSONDataMaps, Rows etc..
       /// </summary>
-      protected virtual void BindParameters(Controller controller, string action, ActionAttribute attrAction, MethodInfo method,  WorkContext work, out object[] args)
+      protected virtual void BindParameters(Controller controller, string action, ActionBaseAttribute attrAction, MethodInfo method,  WorkContext work, out object[] args)
       {
         var mpars = method.GetParameters();
         args = new object[mpars.Length];
@@ -202,7 +224,7 @@ namespace Azos.Wave.Handlers
         for(var i=0; i<mpars.Length; i++)
         {
           var ctp = mpars[i].ParameterType;
-          if (ctp==typeof(object) || ctp==typeof(JSONDataMap) || ctp==typeof(Dictionary<string, object>))
+          if (ctp==typeof(object) || ctp==typeof(JsonDataMap) || ctp==typeof(Dictionary<string, object>))
           {
             args[i] = requested;
             continue;
@@ -211,7 +233,7 @@ namespace Azos.Wave.Handlers
           {
             try
             {
-              args[i] = JSONReader.ToDoc(ctp, requested);
+              args[i] = JsonReader.ToDoc(ctp, requested);
               continue;
             }
             catch(Exception error)
@@ -251,8 +273,8 @@ namespace Azos.Wave.Handlers
               continue;
             }
             if (strictParamBinding)
-             throw new HTTPStatusException(Web.WebConsts.STATUS_400,
-                                        Web.WebConsts.STATUS_400_DESCRIPTION,
+             throw new HTTPStatusException(WebConsts.STATUS_400,
+                                        WebConsts.STATUS_400_DESCRIPTION,
                                         StringConsts.MVC_CONTROLLER_ACTION_PARAM_BINDER_ERROR
                                                     .Args(
                                                           controller.GetType().DisplayNameWithExpandedGenericArgs(),
@@ -319,7 +341,7 @@ namespace Azos.Wave.Handlers
           return;
         }
 
-        work.Response.WriteJSON(result, JSONWritingOptions.CompactRowsAsMap ); //default serialize object as JSON
+        work.Response.WriteJSON(result, JsonWritingOptions.CompactRowsAsMap ); //default serialize object as JSON
       }
 
 

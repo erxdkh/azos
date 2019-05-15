@@ -23,9 +23,6 @@ namespace Azos.Sky
 
     public const string RT_CMDLET_DONTKNOW_ERROR =
                   "Server: do not know how to handle cmdlet '{0}'. Use 'help' to see cmdlet list";
-    public const string APP_LOADER_ERROR = "Application loader exception: ";
-    public const string APP_LOADER_ALREADY_LOADED_ERROR = "Application loader has already loaded";
-
 
     public const string PERMISSION_DESCRIPTION_RemoteTerminalOperatorPermission =
        "Controls whether users can access remote terminals";
@@ -47,9 +44,9 @@ namespace Azos.Sky
     public const string GDIDAUTH_LOCATIONS_READ_FAILURE_ERROR = "GDIDAuthorityServiceBase was not able to read sequence value from any persistence locations. Exception(s): ";
     public const string GDIDAUTH_LOCATION_PERSISTENCE_FAILURE_ERROR = "GDIDAuthorityServiceBase was not able to persist sequence increment in any persistence locations. Exception(s): ";
     public const string GDIDAUTH_DISK_PATH_TOO_LONG_ERROR = "GDIDAuthorityService can not save sequence, path is too long. Use shorter sequence and scope names. Path: {0}";
-    public const string GDIDAUTH_NAME_INVALID_CHARS_ERROR = "GDIDAuthorityService can not use the supplied name '{0}' as it contains invalid chars. Scope and sequence names, may only contain alphanumeric or ['-','.','_'] chars and may only start from and end with either a latin letter or a digit";
+    public const string GDIDAUTH_NAME_INVALID_CHARS_ERROR = "GDIDAuthorityService can not use the supplied name '{0}' as it contains invalid chars. Scope and sequence names, may only contain alphanumeric or ['-','.','_'] chars and may only start from and end with either a Latin letter or a digit";
     public const string GDIDAUTH_NAME_INVALID_LEN_ERROR = "GDIDAuthorityService can not use the supplied name '{0}' as it is either null/blank or longer than the limit of {1}";
-    public const string GDIDAUTH_IDS_INVALID_AUTHORITY_VALUE_ERROR = "GDIDAuthorityService.AuthorityIDs set to ivalid value of '{0}'. An array of at least one element having all of its element values between 0..0x0f is required";
+    public const string GDIDAUTH_IDS_INVALID_AUTHORITY_VALUE_ERROR = "GDIDAuthorityService.AuthorityIDs set to invalid value of '{0}'. An array of at least one element having all of its element values between 0..0x0f is required";
     public const string GDIDAUTH_ID_DATA_PARSING_ERROR = "GDIDAuthorityService::_id parsing error of '{0}'. Inner: {1}";
     public const string GDIDAUTH_ERA_EXHAUSTED_ERROR = "GDIDAuthorityService CATASTROPHIC FAILURE scope '{0}', sequence '{1}'. The era is exhausted. No more generation possible";
 
@@ -402,8 +399,7 @@ namespace Azos.Sky
     public const string PM_HOSTSET_CONFIG_DUPLICATE_NAME_ERROR = "ProceeManager hostset config already contains HostSet named '{0}'";
     public const string PM_HOSTSET_CONFIG_PATH_MISSING_ERROR   = "ProceeManager hostset config 'path' is missing for HostSet named '{0}'";
 
-    public const string CONFIGURATION_INCLUDE_PRAGMA_DEPTH_ERROR = "Include pragma recursive depths exceeded: {0}";
-    public const string CONFIGURATION_INCLUDE_PRAGMA_ERROR = "Include error at '{0}': {1}";
+    
 
     public const string TODO_QUEUE_NOT_FOUND_ERROR = "Todo queue '{0}' not found";
     public const string TODO_QUEUE_ENQUEUE_DIFFERENT_ERROR = "Can not enqueue todos from different queues in one enqueue call";

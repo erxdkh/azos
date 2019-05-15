@@ -207,12 +207,12 @@ namespace Azos.Wave
       /// <summary>
       /// Writes an object as JSON. Does nothing if object is null
       /// </summary>
-      public void WriteJSON(object data, JSONWritingOptions options = null)
+      public void WriteJSON(object data, JsonWritingOptions options = null)
       {
         if (data==null) return;
         setWasWrittenTo();
         m_NetResponse.ContentType = Azos.Web.ContentType.JSON;
-        JSONWriter.Write(data, new NonClosingStreamWrap( getStream() ), options, Encoding);
+        JsonWriter.Write(data, new NonClosingStreamWrap( getStream() ), options, Encoding);
       }
 
       /// <summary>
@@ -234,7 +234,7 @@ namespace Azos.Wave
 
         var ext = Path.GetExtension(localFileName);
         setWasWrittenTo();
-        m_NetResponse.ContentType = Azos.Web.ContentType.ExtensionToContentType(ext, Azos.Web.ContentType.BINARY);
+        m_NetResponse.ContentType = Work.App.GetContentTypeMappings().MapFileExtension(ext).ContentType;
 
         if (attachment)
           m_NetResponse.Headers.Add(WebConsts.HTTP_HDR_CONTENT_DISPOSITION, "attachment; filename={0}".Args(fi.Name));

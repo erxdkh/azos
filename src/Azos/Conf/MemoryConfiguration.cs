@@ -11,20 +11,27 @@ using System.Text;
 
 namespace Azos.Conf
 {
-      /// <summary>
-      /// Implements configuration that can not be persisted/loaded anywhere - just stored in memory
-      /// </summary>
-      [Serializable]
-      public sealed class MemoryConfiguration : Configuration
-      {
+  /// <summary>
+  /// Implements configuration that can not be persisted/loaded anywhere - just stored in memory
+  /// </summary>
+  [Serializable]
+  public sealed class MemoryConfiguration : Configuration
+  {
 
+    /// <summary>
+    /// Creates an instance of a new configuration in memory
+    /// </summary>
+    public MemoryConfiguration() : base()
+    {
+    }
 
+    private bool m_IsReadOnly;
 
-        public override bool IsReadOnly
-        {
-          get { return false; }
-        }
-      }
+    public override bool IsReadOnly => m_IsReadOnly;
 
-
+    public void SetReadOnly(bool val)
+    {
+      m_IsReadOnly = val;
+    }
+  }
 }

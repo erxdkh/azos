@@ -6,6 +6,7 @@
 
 using System;
 
+using Azos;
 using Azos.Web;
 using Azos.Graphics;
 using Azos.Data;
@@ -57,6 +58,57 @@ namespace Azos.Wave.Mvc
     }
 
   }
+
+  /// <summary>
+  /// Represents MVC action result that downloads binary content
+  /// </summary>
+  public struct BinaryContent : IActionResult
+  {
+    public BinaryContent(byte[] data, string contentType = null, string attachmentName = null, int bufferSize = Response.DEFAULT_DOWNLOAD_BUFFER_SIZE)
+    {
+      Data = data.NonNull(nameof(data));
+      ContentType = contentType;
+      AttachmentName = attachmentName;
+      BufferSize = bufferSize;
+    }
+
+
+    /// <summary>
+    /// Binary data to send
+    /// </summary>
+    public readonly byte[] Data;
+
+    /// <summary>
+    /// Content-type header for the binary data
+    /// </summary>
+    public readonly string ContentType;
+
+    /// <summary>
+    /// Download buffer size. Leave unchanged in most cases
+    /// </summary>
+    public readonly int BufferSize;
+
+    /// <summary>
+    /// When true, asks user to save as attachment
+    /// </summary>
+    public readonly string AttachmentName;
+
+
+
+    public void Execute(Controller controller, WorkContext work)
+    {
+      var ctp = ContentType;
+      if (ctp.IsNullOrWhiteSpace())
+       ctp = Azos.Web.ContentType.BINARY;
+
+      work.Response.ContentType = ctp;
+
+      using (var ms = new System.IO.MemoryStream(Data))
+        work.Response.WriteStream(ms, BufferSize,  AttachmentName);
+    }
+
+  }
+
 
   /// <summary>
   /// Represents MVC action result that redirects user to some URL
@@ -160,7 +212,7 @@ namespace Azos.Wave.Mvc
 
     public ClientRecord(Doc doc,
                         Exception validationError,
-                        Func<Schema.FieldDef, JSONDataMap> simpleValueListLookupFunc,
+                        Func<Schema.FieldDef, JsonDataMap> simpleValueListLookupFunc,
                         string recID = null,
                         string target = null,
                         string isoLang = null)
@@ -200,13 +252,13 @@ namespace Azos.Wave.Mvc
   /// </summary>
   public struct JSONResult : IActionResult
   {
-    public JSONResult(object data, JSONWritingOptions options)
+    public JSONResult(object data, JsonWritingOptions options)
     {
       Data = data;
       Options = options;
     }
 
-    public JSONResult(Exception error, JSONWritingOptions options)
+    public JSONResult(Exception error, JsonWritingOptions options)
     {
       var http = WebConsts.STATUS_500;
       var descr = WebConsts.STATUS_500_DESCRIPTION;
@@ -225,7 +277,7 @@ namespace Azos.Wave.Mvc
     }
 
     public readonly object Data;
-    public readonly JSONWritingOptions Options;
+    public readonly JsonWritingOptions Options;
 
 
     public void Execute(Controller controller, WorkContext work)

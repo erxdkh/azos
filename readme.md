@@ -1,8 +1,8 @@
 # Azos - A to Z Sky Operating System
 
-<img src="/elm/design/icons/azos.png" alt="Logo" >
+<img src="/elm/design/logo/azos.png" alt="Logo" >
 
-[![Build status](https://ci.appveyor.com/api/projects/status/v469s4pxwr5e0vox/branch/master?svg=true)](https://ci.appveyor.com/project/Dmitriy24692/azos/branch/master)
+[![Build status](https://ci.appveyor.com/api/projects/status/v469s4pxwr5e0vox/branch/master?svg=true)](https://ci.appveyor.com/project/zhabis/azos/branch/master)
 [![CodeFactor](https://www.codefactor.io/repository/github/azist/azos/badge/master)](https://www.codefactor.io/repository/github/azist/azos/overview/master)
 
 
@@ -12,6 +12,8 @@
 Azos is a **full stack** framework for distributed data-driven business applications
 of any size. Unique feature of Azos is its self-sufficiency as it includes all of the components
 necessary for creation of **typical business** to **Facebook-scale** applications.
+
+[Azos Documentation Index](/src/documentation-index.md)
 
 Azos includes:
 - Application chassis (component hierarchy container)
@@ -43,7 +45,23 @@ Azos is built for writing **Distributed systems** of **infinite scale**:
 - Social Graph system: nodes, friendship, subscriptions/event notification
 - Social trending: real-time trending system based on business entities
 
+## Nuget Packages
 
+[Azos Packages on Nuget](https://www.nuget.org/profiles/azist-group)
+
+cmd | Description
+ -------|------
+ `pm> install-package Azos` | Azos Core Package (App Chassis, Pile, Glue, Log, Instr etc.)
+ `pm> install-package Azos.Web`| Azos Web (Client, Protocols etc.) 
+ `pm> install-package Azos.Wave`| Azos Wave Server + Mvc 
+ `pm> install-package Azos.MsSql`| Azos Microsoft SQL Server Provider (CRUD etc.) 
+ `pm> install-package Azos.Oracle`| Azos ORACLE RDBMS Provider (CRUD etc.)
+ `pm> install-package Azos.MySQL`| Azos MySQL RDBMS Provider (CRUD etc.) + Native Client
+ `pm> install-package Azos.MongoDb`| Azos MongoDb Proivder (CRUD etc.) + Native Client 
+ `pm> install-package Azos.WinForms`| Azos WinForms Support (for legacy)
+ `pm> install-package Azos.Media`| Azos Media Formats (PDF, QR Codes etc.) 
+ `pm> install-package Azos.Sky`| Azos Sky Distributed Cloud OS
+ `pm> install-package Azos.Sky.MongoDb`| Azos Sky MongoDb Services (Queues etc.)
 
 
 See also:

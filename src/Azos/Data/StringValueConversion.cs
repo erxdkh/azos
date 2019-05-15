@@ -377,11 +377,27 @@ namespace Azos.Data
             return ObjectValueConversion.AsUri(val, dflt);
          }
 
+         public static Atom AsAtom(this string val)
+         {
+           return ObjectValueConversion.AsAtom(val);
+         }
+
+         public static Atom AsAtom(this string val, Atom dflt)
+         {
+           return ObjectValueConversion.AsAtom(val, dflt);
+         }
+
+         public static Atom? AsNullableAtom(this string val, Atom? dflt = null)
+         {
+           return ObjectValueConversion.AsNullableAtom(val, dflt);
+         }
+
 
               private static Dictionary<Type, Func<string, bool, object>> s_CONV = new Dictionary<Type,Func<string,bool,object>>
               {
                    {typeof(object)   , (val, strict) => val },
                    {typeof(string)   , (val, strict) => val },
+                   {typeof(char)     , (val, strict) => val.IsNullOrEmpty() ? (char)0 : val.Length==1 ? val[0] : throw new AzosException("(char)`{0}`".Args(val)) },
                    {typeof(int)      , (val, strict) => strict ? int.Parse(val)   : AsInt(val)  },
                    {typeof(uint)     , (val, strict) => strict ? uint.Parse(val)  : AsUInt(val)  },
                    {typeof(long)     , (val, strict) => strict ? long.Parse(val)  : AsLong(val) },
@@ -396,6 +412,7 @@ namespace Azos.Data
                    {typeof(decimal)  , (val, strict) => strict ? decimal.Parse(val)  : AsDecimal(val) },
                    {typeof(TimeSpan) , (val, strict) => strict ? TimeSpan.Parse(val) : AsTimeSpanOrThrow(val) },
                    {typeof(DateTime) , (val, strict) => strict ? DateTime.Parse(val) : AsDateTimeOrThrow(val) },
+                   {typeof(Atom)     , (val, strict) => strict ? AsAtom(val) : AsAtom(val, Atom.ZERO) },
                    {typeof(GDID)     , (val, strict) => strict ? GDID.Parse(val) : AsGDID(val) },
                    {typeof(GDIDSymbol),
                                          (val, strict) =>
@@ -411,11 +428,13 @@ namespace Azos.Data
 
                    {typeof(byte[])    , (val, strict)  => AsByteArray(val)},
                    {typeof(int[])     , (val, strict)  => AsIntArray(val)},
+                   {typeof(char[])    , (val, strict)  => val==null ? null : val.ToCharArray()},
                    {typeof(long[])    , (val, strict)  => AsLongArray(val)},
                    {typeof(float[])   , (val, strict)  => AsFloatArray(val)},
                    {typeof(double[])  , (val, strict)  => AsDoubleArray(val)},
                    {typeof(decimal[]) , (val, strict)  => AsDecimalArray(val)},
 
+                   {typeof(char?)     ,(val, strict) => val.IsNullOrEmpty() ? (char?)0 : val.Length==1 ? val[0] : throw new AzosException("(char?)`{0}`".Args(val)) },
                    {typeof(int?),      (val, strict) => string.IsNullOrWhiteSpace(val) ? (int?)null      : (strict ? int.Parse(val)   : AsInt(val)) },
                    {typeof(uint?),     (val, strict) => string.IsNullOrWhiteSpace(val) ? (uint?)null     : (strict ? uint.Parse(val)  : AsUInt(val)) },
                    {typeof(long?),     (val, strict) => string.IsNullOrWhiteSpace(val) ? (long?)null     : (strict ? long.Parse(val)  : AsLong(val)) },
@@ -430,6 +449,7 @@ namespace Azos.Data
                    {typeof(decimal?),  (val, strict) => string.IsNullOrWhiteSpace(val) ? (decimal?)null  : (strict ? decimal.Parse(val)  : AsDecimal(val)) },
                    {typeof(TimeSpan?), (val, strict) => string.IsNullOrWhiteSpace(val) ? (TimeSpan?)null : (strict ? TimeSpan.Parse(val) : AsNullableTimeSpan(val)) },
                    {typeof(DateTime?), (val, strict) => string.IsNullOrWhiteSpace(val) ? (DateTime?)null : (strict ? DateTime.Parse(val) : AsNullableDateTime(val)) },
+                   {typeof(Atom?),     (val, strict) => string.IsNullOrWhiteSpace(val) ? (Atom?)null     : (strict ? AsAtom(val) : AsAtom(val, Atom.ZERO)) },
                    {typeof(GDID?),     (val, strict) => string.IsNullOrWhiteSpace(val) ? (GDID?)null     : (strict ? GDID.Parse(val) : AsGDID(val)) },
                    {typeof(GDIDSymbol?),
                                        (val, strict) =>

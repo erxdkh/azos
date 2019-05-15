@@ -73,20 +73,20 @@ namespace WaveTestSite.Controllers
       }
 
       //[Action("TestEmpty1", 1, "match{methods=GET}")]
-      [Action("TestEmpty", 1, "match{methods=GET}")]
+      [ActionOnGet(Name ="TestEmpty")]
       public string TestEmpty()
       {
         return null;
       }
 
 
-      [Action("add", 1, "match{is-local=true}")]
+      [Action(Name ="add", MatchScript = "match{is-local=true}")]
       public string PlusLocal(int a, int b, string text = "Was added")
       {
         return "LOCAL {0} {1}".Args(text, a+b);
       }
 
-      [Action("add", 2)]
+      [Action(Name ="add")]
       public string Plus(int a, int b, string text = "Was added")
       {
        // WorkContext.NeedsSession();//<------!
@@ -145,7 +145,7 @@ namespace WaveTestSite.Controllers
          return new ImageBoxTest();
       }
 
-      [Action("download", 0, "match{is-local=true}")]//notice that this action is only allowed for local requestors
+      [Action(Name ="download", MatchScript = "match{is-local=true}")]//notice that this action is only allowed for local requestors
       public object Download(string fpath, bool attachment = false)
       {
          return new FileDownload(fpath, attachment);
@@ -161,7 +161,7 @@ namespace WaveTestSite.Controllers
 
 
       [Action]
-      public object Echo(JSONDataMap data)
+      public object Echo(JsonDataMap data)
       {
         return new
         {
@@ -192,8 +192,8 @@ namespace WaveTestSite.Controllers
         return new Picture((new PuzzleKeypad(secret)).DefaultRender(App, System.Drawing.Color.Yellow), JpegImageFormat.Standard, fn);
       }
 
-      [Action("person", 1, "match{methods=GET}")]
-      public object PersonGet(JSONDataMap req)
+      [ActionOnGet(Name ="person")]
+      public object PersonGet(JsonDataMap req)
       {
         makePuzzle();
         var row = new Person{
@@ -201,12 +201,12 @@ namespace WaveTestSite.Controllers
           FirstName = "Yuriy",
           LastName = "Gagarin",
           DOB = new DateTime(1980, 07, 05),
-          Puzzle = new JSONDataMap{ {"Image", "/mvc/tester/captcha?key=PersonPuzzle"}, {"Question", "Enter the current Year"}}
+          Puzzle = new JsonDataMap{ {"Image", "/mvc/tester/captcha?key=PersonPuzzle"}, {"Question", "Enter the current Year"}}
         };
         return new ClientRecord(row, null);
       }
 
-      [Action("person", 1, "match{methods=POST}")]
+      [ActionOnPost(Name ="person")]
       public object PersonPost(Person doc)
       {
         var puzzlePass = false;
@@ -216,7 +216,7 @@ namespace WaveTestSite.Controllers
           var pk = WorkContext.Session["PersonPuzzle"] as PuzzleKeypad;
           if (pk != null)
           {
-            var answer = doc.Puzzle["Answer"] as JSONDataArray;
+            var answer = doc.Puzzle["Answer"] as JsonDataArray;
             if (answer != null)
               puzzlePass = pk.DecipherCoordinates(answer) == pk.Code;
           }
@@ -239,7 +239,7 @@ namespace WaveTestSite.Controllers
       }
 
       [Action]
-      public object MultipartMap(JSONDataMap data)
+      public object MultipartMap(JsonDataMap data)
       {
         return new
         {
@@ -260,7 +260,7 @@ namespace WaveTestSite.Controllers
 
         if (map) return result;
 
-        return new JSONResult(result, JSONWritingOptions.Compact);
+        return new JSONResult(result, JsonWritingOptions.Compact);
       }
 
       [Action]
@@ -372,7 +372,7 @@ namespace WaveTestSite.Controllers
           public string Various { get; set;}
 
           [Field(storeFlag: StoreFlag.None, metadata:@"ControlType=Puzzle Stored=true")]
-          public JSONDataMap Puzzle { get; set;}
+          public JsonDataMap Puzzle { get; set;}
         }
 
 

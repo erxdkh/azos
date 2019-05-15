@@ -16,13 +16,14 @@ using Azos.Sky.Locking;
 using Azos.Sky.Metabase;
 using Azos.Sky.Workers;
 using Azos.Sky.Dynamic;
+using Azos.IO.FileSystem;
 
 namespace Azos.Apps
 {
   /// <summary>
   /// Provides Sky distributed application chassis implementation of ISkyApplication contract
   /// </summary>
-  public class SkyApplication : AzosApplication, ISkyApplication
+  public sealed class SkyApplication : CommonApplicationLogic, ISkyApplication
   {
     #region CONSTS
 
@@ -38,52 +39,24 @@ namespace Azos.Apps
 
     #region .ctor
 
-    //framework internal called by derivatives
-    protected SkyApplication() : base() { }
-
-    public SkyApplication(SystemApplicationType sysAppType, string[] args)
-     : this(sysAppType, false, args, null)
+    public SkyApplication(SystemApplicationType sysAppType, string[] cmdArgs)
+     : this(sysAppType, false, cmdArgs, null)
     { }
 
-    public SkyApplication(SystemApplicationType sysAppType, string[] args, ConfigSectionNode rootConfig)
-      : this(sysAppType, false, args, rootConfig)
+    public SkyApplication(SystemApplicationType sysAppType, string[] cmdArgs, ConfigSectionNode rootConfig)
+      : this(sysAppType, false, cmdArgs, rootConfig)
     { }
 
     public SkyApplication(SystemApplicationType sysAppType,
                          bool allowNesting,
-                         string[] args,
+                         string[] cmdArgs,
                          ConfigSectionNode rootConfig) : base()
     {
-      var loader = new BootConfLoader(sysAppType);
-      ctor(loader, allowNesting, args, rootConfig);
-    }
-
-    internal SkyApplication(IApplication bootApp,
-                        SystemApplicationType sysAppType,
-                        Metabank metabase,
-                        string thisHost,
-                        bool allowNesting,
-                        string[] args,
-                        ConfigSectionNode rootConfig) : base()
-    {
-      var loader = new BootConfLoader(bootApp, sysAppType, metabase, thisHost);
-      ctor(loader, allowNesting, args, rootConfig);
-    }
-
-    private void ctor(BootConfLoader loader,
-                      bool allowNesting,
-                      string[] args,
-                      ConfigSectionNode rootConfig)
-    {
+      ctor(allowNesting, cmdArgs, rootConfig);
+      m_BootLoader = new BootConfLoader(this, null, sysAppType, cmdArgs, rootConfig);
       try
       {
-        m_BootLoader = loader;
-        m_NOPLockManager = new NOPLockManager(this);
-        var cmdArgs = args == null ? null : new CommandArgsConfiguration(args);
-        Constructor(allowNesting,
-                    cmdArgs,
-                    rootConfig,
-                    defaultDI: new Injection.SkyApplicationDependencyInjector(this));
+        m_ConfigRoot = m_BootLoader.ApplicationConfiguration.Root;
         InitApplication();
       }
       catch
@@ -93,10 +66,58 @@ namespace Azos.Apps
       }
     }
 
+
+
+
+    public SkyApplication(IApplication bootApplication,
+                          SystemApplicationType sysAppType,
+                          IFileSystem metabaseFileSystem,
+                          FileSystemSessionConnectParams metabaseFileSystemSessionParams,
+                          string metabaseFileSystemRootPath,
+                          string thisHostName,
+                          bool allowNesting,
+                          string[] cmdArgs,
+                          ConfigSectionNode rootConfig) : base()
+    {
+      ctor(allowNesting, cmdArgs, rootConfig);
+      m_BootLoader = new BootConfLoader(this, bootApplication,
+                                      sysAppType,
+                                      metabaseFileSystem,
+                                      metabaseFileSystemSessionParams,
+                                      metabaseFileSystemRootPath,
+                                      thisHostName,
+                                      cmdArgs,
+                                      rootConfig);
+      try
+      {
+        m_ConfigRoot = m_BootLoader.ApplicationConfiguration.Root;
+        InitApplication();
+      }
+      catch
+      {
+        Destructor();
+        throw;
+      }
+
+    }
+
+    private void ctor(bool allowNesting,
+                      string[] cmdArgs,
+                      ConfigSectionNode rootConfig)
+    {
+        m_NOPLockManager = new NOPLockManager(this);
+        Constructor(allowNesting,
+                    cmdArgs,
+                    Configuration.NewEmptyRoot(),
+                    defaultDI: new Injection.SkyApplicationDependencyInjector(this));
+    }
+
     protected override void Destructor()
     {
-      DisposeAndNull(ref m_BootLoader);
+      m_ShutdownStarted = true;
+      CleanupApplication();
       base.Destructor();
+      DisposeAndNull(ref m_BootLoader);
     }
 
     #endregion
@@ -104,7 +125,6 @@ namespace Azos.Apps
     #region Fields
 
     private BootConfLoader m_BootLoader;
-    private ConfigSectionNode m_BootConfigRoot;
 
     private WaveServer m_WebManagerServer;
 
@@ -130,7 +150,7 @@ namespace Azos.Apps
 
       public string ParentZoneGovernorPrimaryHostName => m_BootLoader.ParentZoneGovernorPrimaryHostName;
 
-      public IConfigSectionNode BootConfigRoot => m_BootConfigRoot;
+      public IConfigSectionNode BootConfigRoot => m_BootLoader.BootApplication.ConfigRoot;
 
       internal WaveServer WebManagerServer => m_WebManagerServer;
 
@@ -145,26 +165,9 @@ namespace Azos.Apps
 
     #region Protected
 
-      protected override Configuration GetConfiguration()
-      {
-        var localConfig = base.GetConfiguration();
-        localConfig.Application = this;
+    protected override Configuration GetConfiguration() => m_BootLoader.ApplicationConfiguration;
 
-        BootConfLoader.ProcessAllExistingIncludes(localConfig.Root, null, "boot");
-
-        m_BootConfigRoot = localConfig.Root;
-
-        var cmdArgs = new string[]{};
-
-        if (CommandArgs.Configuration is CommandArgsConfiguration)
-          cmdArgs = ((CommandArgsConfiguration)this.CommandArgs.Configuration).Arguments;
-
-        var result = m_BootLoader.Load(cmdArgs, localConfig);
-        result.Application = this;
-        return result;
-      }
-
-      protected override void DoInitApplication()
+    protected override void DoInitApplication()
       {
         base.DoInitApplication();
 

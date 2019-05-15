@@ -15,7 +15,6 @@ using Azos.IO.FileSystem.Local;
 using Azos.IO.FileSystem.Packaging;
 using Azos.Platform;
 
-using Azos.Apps;
 using Azos.Sky.Metabase;
 
 
@@ -27,6 +26,7 @@ namespace Azos.Sky.Tools.amm
     {
       try
       {
+        SkySystem.MetabaseApplicationName = "amm";
         run(args);
       }
       catch (Exception error)
@@ -42,7 +42,7 @@ namespace Azos.Sky.Tools.amm
 
     static void run(string[] args)
     {
-      using (var app = new AzosApplication(allowNesting: true, args: args, rootConfig: null))
+      using (var app = new AzosApplication(allowNesting: true, cmdArgs: args, rootConfig: null))
       {
         var silent = app.CommandArgs["s", "silent"].Exists;
         if (!silent)
@@ -81,15 +81,13 @@ namespace Azos.Sky.Tools.amm
         var w = System.Diagnostics.Stopwatch.StartNew();
 
         using (var fs = new LocalFileSystem(app))
-        using (var mb = new Metabank(fs, new FileSystemSessionConnectParams(), mbPath))
         {
-          //using (new BootConfLoader(SystemApplicationType.Tool, mb, fromHost))
-          using (var skyApp = new SkyApplication(app, SystemApplicationType.Tool, mb, fromHost, allowNesting: false, args: null, rootConfig: null))
+          using (var skyApp = new SkyApplication(app, SystemApplicationType.Tool, fs, new FileSystemSessionConnectParams(),mbPath,fromHost, allowNesting: false, cmdArgs: null, rootConfig: null))
           {
             if (app.CommandArgs["gbm"].Exists)
-              generateManifests(mb, silent);
+              generateManifests(skyApp.Metabase, silent);
             else
-              validate(mb, silent);
+              validate(skyApp.Metabase, silent);
           }
         }
 

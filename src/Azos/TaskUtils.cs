@@ -5,6 +5,8 @@
 </FILE_LICENSE>*/
 
 using System;
+using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Azos
@@ -390,6 +392,43 @@ namespace Azos
         startIndex = (mod * (div + 1))  +  ((thisWorkerIndex - mod) * count);
         return count;
       }
+    }
+
+    /// <summary>
+    /// If the passed task is a completed instance of Task&lt;TResult&gt;
+    /// returns TResult.Result polymorphically as object
+    /// </summary>
+    public static (bool ok, object result) TryGetCompletedTaskResultAsObject(this Task task)
+    {
+      if (task==null) return (false, null);
+      if (!task.IsCompleted) return (false, null);
+
+      var t = task.GetType();
+
+      //safeguard for theoretical future fx extension to more derivatives than Task<t>
+      var tp = t;
+      while(tp!=null)//must search parent chain as continuation return internal ContinuationResultTaskFromTask<TResult> : Task<TResult>
+      {
+        if (tp.IsGenericType && tp.GetGenericTypeDefinition() == typeof(Task<>)) break;
+        tp = tp.BaseType;
+      }
+      if (tp==null) return (false, null);
+
+      var result = t.GetProperty("Result").GetValue(task);
+      return (ok: true, result);
+    }
+
+
+    /// <summary>
+    /// Loads all CPU cores on this machine with CPU work for the specified number of milliseconds.
+    /// This method is typically used to create a fake load which upsets the current thread pool by
+    /// taxing all available thread via TPL. This is used to ensure the "different scheduler state" upon completion.
+    /// </summary>
+    public static void LoadAllCoresFor(int msSpan)
+    {
+      var sw = Stopwatch.StartNew();
+      while (sw.ElapsedMilliseconds < msSpan)
+        Parallel.For(1, 1000, i => Text.NaturalTextGenerator.GenerateFullName());
     }
 
   }

@@ -339,7 +339,7 @@ namespace Azos.Serialization.BSON
           }
 
           //JSONDataMap
-          if (target==typeof(JSONDataMap))
+          if (target==typeof(JsonDataMap))
           {
             var bsonDocumentElement = element as BSONDocumentElement;
             var doc = bsonDocumentElement != null ? bsonDocumentElement.Value : null;
@@ -411,11 +411,11 @@ namespace Azos.Serialization.BSON
         ///  BSON types into corresponding CLR types. The sub-documents get mapped into JSONDataObjects,
         ///   and BSON arrays get mapped into CLR object[]
         /// </summary>
-        public virtual JSONDataMap BSONDocumentToJSONMap(BSONDocument doc, Func<BSONDocument, BSONElement, bool> filter = null)
+        public virtual JsonDataMap BSONDocumentToJSONMap(BSONDocument doc, Func<BSONDocument, BSONElement, bool> filter = null)
         {
           if (doc==null) return null;
 
-          var result = new JSONDataMap(true);
+          var result = new JsonDataMap(true);
           foreach(var elm in doc)
           {
              if (filter!=null)
@@ -498,7 +498,7 @@ namespace Azos.Serialization.BSON
           return DoConvertCLRtoBSON(fieldName, data, tp, targetName);
 
         if (ts_References==null)
-            ts_References = new HashSet<object>(Collections.ReferenceEqualityComparer<object>.Instance);
+            ts_References = new HashSet<object>(Collections.ReferenceEqualityComparer<object>.Default);
 
         if (ts_References.Contains(data))
             throw new BSONException(StringConsts.CLR_BSON_CONVERSION_REFERENCE_CYCLE_ERROR.Args(tp.FullName));
@@ -616,7 +616,7 @@ namespace Azos.Serialization.BSON
           //BinData works faster than string 8% and stores 40%-60% less data in index and data segment
           //Also, SEQUENTIAL keys (big endian) yield 30% smaller indexes (vs non-sequential)
           //ObjectId() is very similar if not identical to BinData(UserDefined)
-          return new BSONBinary(BSONBinaryType.UserDefined, gdid.Bytes); //be very carefull with byte ordering of GDID for DB key index optimization
+          return new BSONBinary(BSONBinaryType.UserDefined, gdid.Bytes); //be very careful with byte ordering of GDID for DB key index optimization
         }
 
         public static BSONElement GUID_CLRtoBSON(string name, Guid guid)

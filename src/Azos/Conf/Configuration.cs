@@ -19,7 +19,7 @@ namespace Azos.Conf
   /// Provides top-level configuration abstraction
   /// </summary>
   [Serializable]
-  public abstract class Configuration : ICloneable
+  public abstract class Configuration : ICloneable, IJsonWritable, IJsonReadable
   {
     #region CONSTS
 
@@ -40,9 +40,10 @@ namespace Azos.Conf
 
     public const  string  DEFAULT_VAR_MACRO_START = "::";
 
+    public const  string  DEFAULT_VAR_ENV_APP_PREFIX = "App.";
+
     public const  string  CONFIG_NAME_ATTR = "name";
     public const  string  CONFIG_ORDER_ATTR = "order";
-
 
     public const  string  CONFIG_LACONIC_FORMAT = "laconf";
 
@@ -70,7 +71,7 @@ namespace Azos.Conf
       {
         return Azos.CodeAnalysis.Laconfig.LaconfigLanguage.Instance.FileExtensions
                                         .Concat(Azos.CodeAnalysis.XML.XMLLanguage.Instance.FileExtensions)
-                                        .Concat(Azos.CodeAnalysis.JSON.JSONLanguage.Instance.FileExtensions);
+                                        .Concat(Azos.CodeAnalysis.JSON.JsonLanguage.Instance.FileExtensions);
       }
     }
 
@@ -92,7 +93,7 @@ namespace Azos.Conf
         if (Azos.CodeAnalysis.XML.XMLLanguage.Instance.FileExtensions.Any(e => string.Equals(e, ext, StringComparison.InvariantCultureIgnoreCase) ))
           return new XMLConfiguration(fileName);
 
-        if (Azos.CodeAnalysis.JSON.JSONLanguage.Instance.FileExtensions.Any(e => string.Equals(e, ext, StringComparison.InvariantCultureIgnoreCase) ))
+        if (Azos.CodeAnalysis.JSON.JsonLanguage.Instance.FileExtensions.Any(e => string.Equals(e, ext, StringComparison.InvariantCultureIgnoreCase) ))
           return new JSONConfiguration(fileName);
 
         throw new ConfigException(StringConsts.CONFIG_NO_PROVIDER_LOAD_FILE_ERROR + fileName);
@@ -146,8 +147,8 @@ namespace Azos.Conf
         if (Azos.CodeAnalysis.XML.XMLLanguage.Instance.FileExtensions.Any(e => string.Equals(e, format, StringComparison.InvariantCultureIgnoreCase)))
           return XMLConfiguration.CreateFromXML(content);
 
-        if (Azos.CodeAnalysis.JSON.JSONLanguage.Instance.FileExtensions.Any(e => string.Equals(e, format, StringComparison.InvariantCultureIgnoreCase)))
-          return JSONConfiguration.CreateFromJSON(content);
+        if (Azos.CodeAnalysis.JSON.JsonLanguage.Instance.FileExtensions.Any(e => string.Equals(e, format, StringComparison.InvariantCultureIgnoreCase)))
+          return JSONConfiguration.CreateFromJson(content);
 
         if (fallbackFormat.IsNotNullOrWhiteSpace())
           return ProviderLoadFromString(content, fallbackFormat);
@@ -165,7 +166,7 @@ namespace Azos.Conf
 
       return Azos.CodeAnalysis.Laconfig.LaconfigLanguage.Instance.FileExtensions.Any(e => string.Equals(e, format, StringComparison.InvariantCultureIgnoreCase)) ||
               Azos.CodeAnalysis.XML.XMLLanguage.Instance.FileExtensions.Any(e => string.Equals(e, format, StringComparison.InvariantCultureIgnoreCase)) ||
-              Azos.CodeAnalysis.JSON.JSONLanguage.Instance.FileExtensions.Any(e => string.Equals(e, format, StringComparison.InvariantCultureIgnoreCase));
+              Azos.CodeAnalysis.JSON.JsonLanguage.Instance.FileExtensions.Any(e => string.Equals(e, format, StringComparison.InvariantCultureIgnoreCase));
     }
 
     /// <summary>
@@ -186,11 +187,14 @@ namespace Azos.Conf
         if (Azos.CodeAnalysis.XML.XMLLanguage.Instance.FileExtensions.Any(e => string.Equals(e, ext, StringComparison.InvariantCultureIgnoreCase) ))
           return new XMLConfiguration();
 
-        if (Azos.CodeAnalysis.JSON.JSONLanguage.Instance.FileExtensions.Any(e => string.Equals(e, ext, StringComparison.InvariantCultureIgnoreCase) ))
+        if (Azos.CodeAnalysis.JSON.JsonLanguage.Instance.FileExtensions.Any(e => string.Equals(e, ext, StringComparison.InvariantCultureIgnoreCase) ))
           return new JSONConfiguration();
 
         throw new ConfigException(StringConsts.CONFIG_NO_PROVIDER_HANDLE_FILE_ERROR + fileName);
     }
+
+    
+
 
 
     /// <summary>
@@ -245,6 +249,7 @@ namespace Azos.Conf
     private string m_Variable_ENV_MOD  = DEFAULT_VAR_ENV_MOD;
 
     private string m_Variable_MACRO_START = DEFAULT_VAR_MACRO_START;
+    private string m_Variable_ENV_APP_PREFIX = DEFAULT_VAR_ENV_APP_PREFIX;
     #endregion
 
     #region Public properties
@@ -390,6 +395,17 @@ namespace Azos.Conf
     }
 
     /// <summary>
+    /// Variable environment application prefix - when env var name starts with this prefix, the var resolves the name after prefix
+    /// from application via a call to App.ResolveNamedVar()
+    /// </summary>
+    public string Variable_ENV_APP_PREFIX
+    {
+      get { return m_Variable_ENV_APP_PREFIX ?? DEFAULT_VAR_ENV_APP_PREFIX; }
+      set { m_Variable_ENV_APP_PREFIX = value; }
+    }
+
+
+    /// <summary>
     /// Variable get clause modifier
     /// </summary>
     public string Variable_MACRO_START
@@ -497,11 +513,22 @@ namespace Azos.Conf
         }
 
         /// <summary>
-        /// Resolves variable name into its value
+        /// Resolves variable name into its value. If the variable names starts from Variable_ENV_APP_PREFIX,
+        /// then the variable gets resolved via Application.ResolveEnvironmentVariable(name), otherwise
+        /// the system will try passed resolver, then this conf instance resolver, then process-wide resolver, then OS resolver
         /// </summary>
         public string ResolveEnvironmentVar(string name, IEnvironmentVariableResolver resolver = null)
         {
           string value;
+
+          var appPrefix = this.Variable_ENV_APP_PREFIX;
+          if (name.StartsWith(appPrefix))
+          {
+            var appVarName = name.Substring(appPrefix.Length);
+            Application.ResolveNamedVar(appVarName, out value);
+            return value;
+          }
+
           if (resolver != null && resolver.ResolveEnvironmentVariable(name, out value)) return value;
 
           resolver = m_EnvironmentVarResolver;
@@ -620,9 +647,9 @@ namespace Azos.Conf
         /// <summary>
         /// Returns this config as JSON data map suitable for making JSONConfiguration
         /// </summary>
-        public JSONDataMap ToConfigurationJSONDataMap()
+        public JsonDataMap ToConfigurationJSONDataMap()
         {
-          if (m_Root==null) return new JSONDataMap(false);
+          if (m_Root==null) return new JsonDataMap(false);
 
           return m_Root.ToConfigurationJSONDataMap();
         }
@@ -631,13 +658,36 @@ namespace Azos.Conf
 
     #region Protected Utils
 
-      /// <summary>
-      /// Override to perform transforms on node names so they become suitable for particular configuration type
-      /// </summary>
-      protected virtual string AdjustNodeName(string name)
+    /// <summary>
+    /// Override to perform transforms on node names so they become suitable for particular configuration type
+    /// </summary>
+    protected virtual string AdjustNodeName(string name)
+    {
+      return name;
+    }
+
+    void IJsonWritable.WriteAsJson(TextWriter wri, int nestingLevel, JsonWritingOptions options)
+    {
+      ((IJsonWritable)m_Root).WriteAsJson(wri, nestingLevel, options);
+    }
+
+    (bool match, IJsonReadable self) IJsonReadable.ReadAsJson(object data, bool fromUI, JsonReader.NameBinding? nameBinding)
+    {
+      if (data is JsonDataMap map)
       {
-        return name;
+        try
+        {
+          var cfg = JSONConfiguration.CreateFromJson(map);
+          return (true, cfg);
+        }
+        catch
+        {
+         //swallow so the data goes as unconsumed instead of exception
+        }
       }
+
+      return (false, null);
+    }
 
     #endregion
 

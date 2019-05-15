@@ -79,7 +79,7 @@ namespace Azos.Wave.Handlers
         catch(Exception err)
         {
           //no build info
-          Server.Log(Log.MessageType.Warning, "Assembly '{0}' has no BUILD_INFO".Args(assembly.FullName), from: "{0}.ctor()".Args(typeof(EmbeddedSiteHandler).Name), error:  err);
+          WriteLog(Log.MessageType.Warning, "ctor", "Assembly '{0}' has no BUILD_INFO".Args(assembly.FullName), error:  err);
           m_LastModifiedDate = App.TimeSource.UTCNow.DateTimeToHTTPCookieDateTime();
         }
       }
@@ -307,7 +307,7 @@ namespace Azos.Wave.Handlers
 
         var ext = res.Substring(i+1);
 
-        return ContentType.ExtensionToContentType(ext);
+        return App.GetContentTypeMappings().MapFileExtension(ext).ContentType;
       }
     #endregion
 

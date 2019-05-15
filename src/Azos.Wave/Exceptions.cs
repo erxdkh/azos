@@ -99,7 +99,7 @@ namespace Azos.Wave
   }
 
   /// <summary>
-  /// Wraps WAVE template rendering execptions
+  /// Wraps WAVE template rendering exceptions
   /// </summary>
   [Serializable]
   public class WaveTemplateRenderingException : WaveException
@@ -156,10 +156,10 @@ namespace Azos.Wave
       {
          var result = "> ";
 
-         Exception error = this;//.InnerException;
-         while(error is FilterPipelineException)
+         Exception error = this;
+         while(error is FilterPipelineException fpe)
          {
-            result += "{0} > ".Args(((FilterPipelineException)error).FilterName);
+            result += "{0} > ".Args(fpe.FilterName);
             error = error.InnerException;
          }
 
@@ -174,8 +174,8 @@ namespace Azos.Wave
     {
       get
       {
-         if (InnerException is FilterPipelineException)
-           return ((FilterPipelineException)InnerException).RootException;
+         if (InnerException is FilterPipelineException fpe)
+           return fpe.RootException;
          else
            return InnerException;
       }
@@ -206,7 +206,7 @@ namespace Azos.Wave
   /// Thrown to indicate various Http status conditions
   /// </summary>
   [Serializable]
-  public class HTTPStatusException : WaveException
+  public class HTTPStatusException : WaveException, IHttpStatusProvider
   {
     public const string STATUS_CODE_FLD_NAME = "HTTPSE-SC";
     public const string STATUS_DESCRIPTION_FLD_NAME = "HTTPSE-SD";
@@ -309,6 +309,9 @@ namespace Azos.Wave
     /// </summary>
     public readonly string StatusDescription;
 
+    int IHttpStatusProvider.HttpStatusCode => StatusCode;
+    string IHttpStatusProvider.HttpStatusDescription => StatusDescription;
+
     public override void GetObjectData(SerializationInfo info, StreamingContext context)
     {
       if (info == null)
@@ -327,31 +330,35 @@ namespace Azos.Wave
      /// <summary>
      /// Describes exception for client response transmission as JSONDataMap
      /// </summary>
-     public static Azos.Serialization.JSON.JSONDataMap ToClientResponseJSONMap(this Exception error, bool detailed)
+     public static Serialization.JSON.JsonDataMap ToClientResponseJSONMap(this Exception error, bool detailed)
      {
        var actual = error;
-       if (actual is FilterPipelineException)
-         actual = ((FilterPipelineException)actual).RootException;
+       if (actual is FilterPipelineException fpe)
+         actual = fpe.RootException;
 
-        var result = new Azos.Serialization.JSON.JSONDataMap();
-        result["OK"] = false;
-        result["HttpStatusCode"] = (actual is HTTPStatusException) ? ((HTTPStatusException)actual).StatusCode : -1;
-        result["HttpStatusDescription"] = (actual is HTTPStatusException) ? ((HTTPStatusException)actual).StatusDescription : string.Empty;
+       var result = new Azos.Serialization.JSON.JsonDataMap();
+       result["OK"] = false;
 
-        if (detailed)
-        {
-          result["Error"] = error.Message;
-          result["Type"] = error.GetType().FullName;
-          result["StackTrace"] = error.StackTrace;
-          if (error.InnerException!=null)
+       if (actual is IHttpStatusProvider st)
+       {
+        result["HttpStatusCode"] = st.HttpStatusCode;
+        result["HttpStatusDescription"] = st.HttpStatusDescription;
+       }
+
+       if (detailed)
+       {
+         result["Error"] = error.Message;
+         result["Type"] = error.GetType().FullName;
+         result["StackTrace"] = error.StackTrace;
+         if (error.InnerException!=null)
             result["Inner"] = error.InnerException.ToClientResponseJSONMap(detailed);
-        }
-        else
-        {
-          result["Error"] = actual.GetType().Name;
-        }
+       }
+       else
+       {
+         result["Error"] = actual.GetType().Name;
+       }
 
-        result["IsAuthorization"] = actual is Azos.Security.AuthorizationException || actual.InnerException is Azos.Security.AuthorizationException;
+       result["IsAuthorization"] = Security.AuthorizationException.IsDenotedBy(actual);
 
        return result;
     }

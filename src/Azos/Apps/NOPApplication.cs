@@ -95,7 +95,10 @@ namespace Azos.Apps
 
         public bool ForceInvariantCulture { get { return false; } }
 
-        public Guid InstanceID
+
+        public Atom AppId => Atom.ZERO;
+
+        public Guid InstanceId
         {
             get { return m_InstanceID; }
         }
@@ -222,6 +225,11 @@ namespace Azos.Apps
         public IApplicationComponent GetComponentByCommonName(string name)
         {
           return ApplicationComponent.GetAppComponentByCommonName(this, name);
+        }
+
+        public bool ResolveNamedVar(string name, out string value)
+        {
+          return DefaultAppVarResolver.ResolveNamedVar(this, name, out value);
         }
 
     #endregion

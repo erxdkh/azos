@@ -70,6 +70,7 @@ namespace Azos
     #region Topics
       //note: Topics must be short as they are emitted into every log line
       public const string APPLICATION_TOPIC = "App";
+      public const string MEMORY_TOPIC = "Mem";
       public const string PLATFROM_TOPIC = "Pltfrm";
       public const string DATA_TOPIC = "Data";
       public const string LOG_TOPIC = "Log";
@@ -100,7 +101,7 @@ namespace Azos
       public const string WEB_TOPIC = "Web";
       public const string WAVE_TOPIC = "Wave";
 
-      public const string LOG_CHANNEL_SECURITY = "security";
+      public static readonly Atom LOG_CHANNEL_SECURITY = Atom.Encode("sec");
 
       public const string ISO_LANG_ENGLISH = "eng";
       public const string ISO_LANG_RUSSIAN = "rus";

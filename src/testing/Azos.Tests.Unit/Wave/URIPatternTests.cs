@@ -3,15 +3,9 @@
  * The A to Z Foundation (a.k.a. Azist) licenses this file to you under the MIT license.
  * See the LICENSE file in the project root for more information.
 </FILE_LICENSE>*/
- 
-  
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Azos.Scripting;
 
+using Azos.Scripting;
 using Azos.Serialization.JSON;
 using Azos.Wave;
 
@@ -193,7 +187,7 @@ namespace Azos.Tests.Unit.Wave
         public void MakeURI_T1_noprefix()
         {
             var pattern = new URIPattern("/news/{year}/{month}/{title}");
-            var map = new JSONDataMap { { "year", "1981" }, { "month", 12 }, { "title", "some_title" } };
+            var map = new JsonDataMap { { "year", "1981" }, { "month", 12 }, { "title", "some_title" } };
 
             var uri = pattern.MakeURI(map);
 
@@ -205,7 +199,7 @@ namespace Azos.Tests.Unit.Wave
         {
             var pattern = new URIPattern("{year}/{month}/{title}");
             var prefix = new Uri("http://test.com");
-            var map = new JSONDataMap { { "year", "1981" }, { "month", 12 }, { "title", "some_title" } };
+            var map = new JsonDataMap { { "year", "1981" }, { "month", 12 }, { "title", "some_title" } };
 
             var uri = pattern.MakeURI(map, prefix);
 
@@ -216,7 +210,7 @@ namespace Azos.Tests.Unit.Wave
         public void MakeURI_T2_params()
         {
             var pattern = new URIPattern("{year}/values?{p1}={v1}&par2={v2}");
-            var map = new JSONDataMap { { "year", "1980" }, { "p1", "par1" }, { "v1", 10 }, { "v2", "val2" } };
+            var map = new JsonDataMap { { "year", "1980" }, { "p1", "par1" }, { "v1", 10 }, { "v2", "val2" } };
 
             var uri = pattern.MakeURI(map);
 
@@ -227,7 +221,7 @@ namespace Azos.Tests.Unit.Wave
         public void MakeURI_T2_params_prefix()
         {
             var pattern = new URIPattern("{year}/values?{p1}={v1}&par2={v2}");
-            var map = new JSONDataMap { { "year", "1980" }, { "p1", "par1" }, { "v1", 10 }, { "v2", "val2" } };
+            var map = new JsonDataMap { { "year", "1980" }, { "p1", "par1" }, { "v1", 10 }, { "v2", "val2" } };
             var prefix = new Uri("http://test.org/");
 
             var uri = pattern.MakeURI(map, prefix);

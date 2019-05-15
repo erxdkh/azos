@@ -65,6 +65,8 @@ namespace Azos.Tests.Nub.Configuration
 
   <this name='$(/vars/var1)' text='This happened on $(../MyClass/data/extra/$when) date' />
 
+  <that name='$(  /vars/var1  )' text='This happened on $( ../MyClass/data          /extra/$when  ) date' />
+
   <logger location='$(/vars/path1/$value)$(@/vars/path2/$value)'/>
 
   <optional>$(/non-existent)</optional>
@@ -74,6 +76,27 @@ namespace Azos.Tests.Nub.Configuration
   <env2>$(~A)+$(~B)</env2>
   <env3>$(~A)$(@~B)</env3>
 
+  <envAppTopic>$(~App.CoreConsts.APPLICATION_TOPIC)</envAppTopic>
+  <envDataTopic>$(~App.CoreConsts.DATA_TOPIC)</envDataTopic>
+  <instanceID>$(~App.Instance)</instanceID>
+  <counterA>$(~App.Counter.A)</counterA>
+  <counterB>$(~App.Counter.B)</counterB>
+
+  <coalesce>
+    <a atr1='127'>1</a>
+    <b>2</b>
+    <d>$(/coalesce/a|../b)</d>
+    <e>3</e>
+    <f>$(../c|../d)777</f>
+    <g>$(../c | ../d)8</g>
+    <h>$(../c |../c|z|w| /coalesce/f)</h>
+    <i>7$($c|../h)8</i>
+    <j>$(../$c|../a/$atr1)</j>
+    <k>100$(../$c ; ../a/$atr1)</k>
+    <hang>200$(   ../a/$atr1  )</hang>
+    <hang2>    300$(                ../$c      ;   ../a/$atr1      )    </hang2>
+
+  </coalesce>
 
  </root>
 ";
@@ -205,6 +228,18 @@ namespace Azos.Tests.Nub.Configuration
 
           Aver.AreEqual(@"c:\logs\critical", conf.Root["logger"].AttrByName("location").Value);
 
+        }
+
+        [Run]
+        public void TestNavigationinVarNames_WithSpaces()
+        {
+          var conf = Azos.Conf.XMLConfiguration.CreateFromXML(xml);
+
+          Aver.AreEqual("val1", conf.Root["that"].AttrByName("name").Value);
+          Aver.AreEqual("$(  /vars/var1  )", conf.Root["that"].AttrByName("name").VerbatimValue);
+          Aver.AreEqual("$(  /vars/var1  )", conf.Root["that"].AttrByName("name").ValueAsString(verbatim: true));
+
+          Aver.AreEqual("This happened on 05/12/1982 date", conf.Root["that"].AttrByName("text").Value);
         }
 
         [Run]
@@ -397,7 +432,67 @@ namespace Azos.Tests.Nub.Configuration
           Aver.AreEqual("/vars/many/[1]/$value", conf.Root.Navigate( conf.Root["vars"]["many"][1].AttrByIndex(0).RootPath ).RootPath);
         }
 
+
+        [Run]
+        public void AppVars()
+        {
+          var conf = Azos.Conf.XMLConfiguration.CreateFromXML(xml);
+          Aver.AreEqual( CoreConsts.APPLICATION_TOPIC, conf.Root["envAppTopic"].Value );
+          Aver.AreEqual( CoreConsts.DATA_TOPIC, conf.Root["envDataTopic"].Value );
+          Aver.AreEqual(Apps.ExecutionContext.Application.InstanceId, conf.Root["instanceID"].ValueAsGUID(Guid.Empty));
+
+          Aver.AreEqual(CoreConsts.APPLICATION_TOPIC, conf.Root["envAppTopic"].Value);
+
+          Aver.AreEqual(1, conf.Root["counterA"].ValueAsInt());
+          Aver.AreEqual(2, conf.Root["counterA"].ValueAsInt());
+          Aver.AreEqual(3, conf.Root["counterA"].ValueAsInt());
+          Aver.AreEqual(1, conf.Root["counterB"].ValueAsInt());
+        }
+
+    [Run]
+    public void CoalesceMultipleVarReferences()
+    {
+      var conf = Azos.Conf.XMLConfiguration.CreateFromXML(xml).Root;
+
+      var coalesce = conf["coalesce"];
+      Aver.IsTrue(coalesce.Exists);
+
+      Aver.AreEqual(1, coalesce["a"].ValueAsInt());
+      Aver.AreEqual(2, coalesce["b"].ValueAsInt());
+      Aver.AreEqual(0, coalesce["c"].ValueAsInt());
+      Aver.AreEqual(1, coalesce["d"].ValueAsInt());
+      Aver.AreEqual(3, coalesce["e"].ValueAsInt());
+      Aver.AreEqual(1777, coalesce["f"].ValueAsInt());
+      Aver.AreEqual(18, coalesce["g"].ValueAsInt());
+      Aver.AreEqual(1777, coalesce["h"].ValueAsInt());
+      Aver.AreEqual(717778, coalesce["i"].ValueAsInt());
+      Aver.AreEqual(127, coalesce["j"].ValueAsInt());
+      Aver.AreEqual(100127, coalesce["k"].ValueAsInt());
+      Aver.AreEqual(200127, coalesce["hang"].ValueAsInt());
+      Aver.AreEqual(300127, coalesce["hang2"].ValueAsInt());
     }
+
+    [Run]
+    public void MaxIterationsLimit()
+    {
+      var conf = "app{ a=$(~A) b=$($a) }".AsLaconicConfig(handling: Data.ConvertErrorHandling.Throw);
+
+      var external = new Vars();
+      external["A"] = "$(~A) something";   //this creates an infinite loop as var resolves with another reference to itself
+      conf.Configuration.EnvironmentVarResolver = external;
+
+      try
+      {
+        var crash = conf.AttrByName("b").Value;
+        Aver.Fail("We should have received an exception about config var limit");
+      }
+      catch(ConfigException error)
+      {
+        Console.WriteLine("Expected and got ConfigException: {0}".Args(error.Message));
+      }
+    }
+
+  }
 
 
     class MyVars : IEnvironmentVariableResolver

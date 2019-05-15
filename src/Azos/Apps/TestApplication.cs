@@ -69,9 +69,11 @@ namespace Azos.Apps
 
         public IApplicationDependencyInjector DependencyInjector { get; set; }
 
-       public virtual bool ForceInvariantCulture { get; set; }
+        public virtual bool ForceInvariantCulture { get; set; }
 
-        public virtual Guid InstanceID { get { return m_InstanceID;}}
+        public virtual Atom AppId { get; set; }
+
+        public virtual Guid InstanceId { get { return m_InstanceID;}}
 
         public virtual bool AllowNesting { get { return false;}}
 
@@ -153,7 +155,7 @@ namespace Azos.Apps
         public virtual bool RegisterConfigSettings(IConfigSettings settings)
         {
             lock (m_ConfigSettings)
-                if (!m_ConfigSettings.Contains(settings, Collections.ReferenceEqualityComparer<IConfigSettings>.Instance))
+                if (!m_ConfigSettings.Contains(settings, Collections.ReferenceEqualityComparer<IConfigSettings>.Default))
                 {
                     m_ConfigSettings.Add(settings);
                     return true;
@@ -263,6 +265,11 @@ namespace Azos.Apps
         public IApplicationComponent GetComponentByCommonName(string name)
         {
           return ApplicationComponent.GetAppComponentByCommonName(this, name);
+        }
+
+        public bool ResolveNamedVar(string name, out string value)
+        {
+          return DefaultAppVarResolver.ResolveNamedVar(this, name, out value);
         }
   }
 }

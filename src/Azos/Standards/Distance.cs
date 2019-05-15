@@ -5,23 +5,23 @@
 </FILE_LICENSE>*/
 
 using System;
-using System.Collections.Generic;
+using System.Collections;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Globalization;
 
+using Azos.Data;
 using Azos.Serialization.JSON;
 
 namespace Azos.Standards
 {
+#warning Needs revision, why is .Value needed?
   /// <summary>
   /// Represents length distance with unit type.
-  /// All operations are done with presision of 1 micrometer (10^(-3) mm)
+  /// All operations are done with precision of 1 micrometer (10^(-3) mm)
   /// </summary>
-  public struct Distance : IEquatable<Distance>, IComparable<Distance>, IJSONWritable, IFormattable
+  public struct Distance : IEquatable<Distance>, IComparable<Distance>, IJsonWritable, IJsonReadable
   {
-    public enum UnitType{ Cm = 0, In, Ft, Mm, M, Yd }
+    public enum UnitType{ Unspecified = 0, Cm , In, Ft, Mm, M, Yd }
 
     public const decimal MM_IN_CM = 10.0m;
     public const decimal MM_IN_IN = 25.4m;
@@ -63,7 +63,7 @@ namespace Azos.Standards
         case UnitType.Ft: return ValueInMm / MM_IN_FT;
         case UnitType.M:  return ValueInMm / MM_IN_M;
         case UnitType.Yd: return ValueInMm / MM_IN_YD;
-        default: throw new AzosException(StringConsts.STANDARDS_DISTANCE_UNIT_TYPE_ERROR.Args(Unit));
+        default: throw new AzosException(StringConsts.STANDARDS_DISTANCE_UNIT_TYPE_ERROR.Args(toUnit));
       }
     }
 
@@ -126,13 +126,6 @@ namespace Azos.Standards
       return "{0} {1}".Args(Value.ToString("#,#.###"), UnitName);
     }
 
-    public string ToString(string format, IFormatProvider formatProvider)
-    {
-      throw new NotImplementedException();
-    }
-
-    #region INTERFACES
-
     public bool Equals(Distance other)
     {
       return (ValueInMm == other.ValueInMm);
@@ -143,15 +136,29 @@ namespace Azos.Standards
       return ValueInMm.CompareTo(other.ValueInMm);
     }
 
-    public void WriteAsJSON(TextWriter wri, int nestingLevel, JSONWritingOptions options = null)
+    void IJsonWritable.WriteAsJson(TextWriter wri, int nestingLevel, JsonWritingOptions options)
     {
-      JSONDataMap map = new JSONDataMap { { "unit", UnitName }, { "value", Value } };
-      map.ToJSON(wri, options);
+      JsonWriter.WriteMap(wri, nestingLevel, options, new DictionaryEntry("unit", UnitName), new DictionaryEntry("value", Value));
     }
 
-    #endregion
+    (bool match, IJsonReadable self) IJsonReadable.ReadAsJson(object data, bool fromUI, JsonReader.NameBinding? nameBinding)
+    {
+      if (data is JsonDataMap map)
+      {
+        try
+        {
+          return (true, new Distance(map["value"].AsDecimal(handling: ConvertErrorHandling.Throw),
+                                     map["unit"].AsEnum(UnitType.Unspecified, handling: ConvertErrorHandling.Throw)));
+        }
+        catch
+        {
+          //passthrough false
+        }
+      }
 
-    #region OPERATORS
+      return (false, null);
+    }
+
 
     public static Distance operator +(Distance obj1, Distance obj2)
     {
@@ -207,7 +214,6 @@ namespace Azos.Standards
       return obj1.ValueInMm < obj2.ValueInMm;
     }
 
-    #endregion
 
     private static void getPair(string val, out string valueString, out string unitString)
     {
@@ -228,6 +234,7 @@ namespace Azos.Standards
         }
       }
     }
+
   }
 
 }

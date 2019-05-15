@@ -168,21 +168,20 @@ namespace Azos.Wave.Filters
                json = work.Request.AcceptTypes.Any(at=>at.EqualsIgnoreCase(ContentType.JSON));
 
           var actual = error;
-          if (actual is FilterPipelineException)
-            actual = ((FilterPipelineException)actual).RootException;
+          if (actual is FilterPipelineException fpe)
+            actual = fpe.RootException;
 
-          if (actual is MvcException)
-            actual = ((MvcException)actual).InnerException;
-
-
-          var securityError = Azos.Security.AuthorizationException.IsDenotedBy(actual);
+          if (actual is MvcException mvce)
+            actual = mvce.InnerException;
 
 
-          if (actual is HTTPStatusException)
+          var securityError = Security.AuthorizationException.IsDenotedBy(actual);
+
+
+          if (actual is IHttpStatusProvider httpStatusProvider)
           {
-            var se = (HTTPStatusException)actual;
-            work.Response.StatusCode = se.StatusCode;
-            work.Response.StatusDescription = se.StatusDescription;
+            work.Response.StatusCode = httpStatusProvider.HttpStatusCode;
+            work.Response.StatusDescription = httpStatusProvider.HttpStatusDescription;
           }
           else
           {
@@ -208,7 +207,7 @@ namespace Azos.Wave.Filters
           {
             if (securityRedirectMatches != null && securityRedirectMatches.Count > 0)
             {
-              JSONDataMap matched = null;
+              JsonDataMap matched = null;
               foreach(var match in securityRedirectMatches.OrderedValues)
               {
                 matched = match.Make(work, actual);
@@ -268,14 +267,14 @@ namespace Azos.Wave.Filters
 
           if (logMatches!=null && logMatches.Count>0)
           {
-            JSONDataMap matched = null;
+            JsonDataMap matched = null;
             foreach(var match in logMatches.OrderedValues)
             {
               matched = match.Make(work, error);
               if (matched!=null) break;
             }
             if (matched!=null)
-              work.Log(Log.MessageType.Error, error.ToMessageWithType(), typeof(ErrorFilter).FullName, pars: matched.ToJSON(JSONWritingOptions.CompactASCII));
+              work.Log(Log.MessageType.Error, error.ToMessageWithType(), typeof(ErrorFilter).FullName, pars: matched.ToJson(JsonWritingOptions.CompactASCII));
           }
 
       }
