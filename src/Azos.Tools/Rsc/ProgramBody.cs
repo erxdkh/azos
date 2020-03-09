@@ -10,7 +10,7 @@ using System.IO;
 
 using Azos.Data.Modeling;
 using Azos.Conf;
-using Azos.IO;
+using Azos.IO.Console;
 using Azos.Platform;
 
 namespace Azos.Tools.Rsc
@@ -66,7 +66,7 @@ namespace Azos.Tools.Rsc
 
           ConsoleUtils.Info("Schema file loaded OK");
 
-          var tcompiler = typeof(MySQLCompiler);
+          var tcompiler = typeof(MsSqlCompiler);
           var tcname = config.Root["c", "compiler"].AttrByIndex(0).Value;
 
           if (!string.IsNullOrWhiteSpace(tcname))

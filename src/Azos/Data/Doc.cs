@@ -27,7 +27,7 @@ namespace Azos.Data
   public interface IDataDoc : IEquatable<Doc>, IEnumerable<Object>, IValidatable, IConfigurable, IConfigurationPersistent
   {
     /// <summary>
-    /// Returns schema object that describes fields of this document
+    /// Returns schema object that describes field structure of this document
     /// </summary>
     Schema Schema { get; }
 
@@ -47,7 +47,7 @@ namespace Azos.Data
   /// Documents are NOT THREAD SAFE by definition
   /// </summary>
   [Serializable, CustomMetadata(typeof(DocCustomMetadataProvider))]
-  public abstract class Doc : IDataDoc, IJsonWritable, IJsonReadable
+  public abstract partial class Doc : IDataDoc, IJsonWritable, IJsonReadable, Apps.Injection.IApplicationInjection
   {
 
     #region Static
@@ -137,8 +137,6 @@ namespace Azos.Data
     }
 
     #endregion
-
-
 
     #region Properties
 
@@ -236,162 +234,6 @@ namespace Azos.Data
     public virtual void PersistConfiguration(ConfigSectionNode node)
     {
       throw new NotImplementedException();
-    }
-
-    /// <summary>
-    /// Performs validation of data in the row returning exception object that provides description
-    /// in cases when validation does not pass. Validation is performed not targeting any particular backend
-    /// </summary>
-    public virtual Exception Validate()
-    {
-        return Validate(null);
-    }
-
-
-    /// <summary>
-    /// Validates row using row schema and supplied field definitions.
-    /// Override to perform custom validations,
-    /// i.e. TypeRows may directly access properties and write some validation type-safe code
-    /// The method is not expected to throw exception in case of failed validation, rather return exception instance because
-    ///  throwing exception really hampers validation performance when many rows need to be validated
-    /// </summary>
-    public virtual Exception Validate(string targetName)
-    {
-        foreach(var fd in Schema)
-        {
-            var error = ValidateField(targetName, fd);
-            if (error!=null) return error;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Validates row field by name.
-    /// Shortcut to ValidateField(Schema.FieldDef)
-    /// </summary>
-    public Exception ValidateField(string targetName, string fname)
-    {
-      var fdef = Schema[fname];
-      return ValidateField(targetName, fdef);
-    }
-
-    /// <summary>
-    /// Validates row field using Schema.FieldDef settings.
-    /// This method is invoked by base Validate() implementation.
-    /// The method is not expected to throw exception in case of failed validation, rather return exception instance because
-    ///  throwing exception really hampers validation performance when many rows need to be validated
-    /// </summary>
-    public virtual Exception ValidateField(string targetName, Schema.FieldDef fdef)
-    {
-        if (fdef == null)
-          throw new FieldValidationException(Schema.Name,
-                                                  CoreConsts.NULL_STRING,
-                                                  StringConsts.ARGUMENT_ERROR + ".ValidateField(fdef=null)");
-
-        var atr = fdef[targetName];
-        if (atr==null) return null;
-
-        var value = GetFieldValue(fdef);
-
-        if (value==null ||
-            (value is string && ((string)value).IsNullOrWhiteSpace()) ||
-            (value is GDID && ((GDID)value).IsZero)
-            )
-        {
-            if (atr.Required)
-            return new FieldValidationException(Schema.Name, fdef.Name, StringConsts.CRUD_FIELD_VALUE_REQUIRED_ERROR);
-
-            return null;
-        }
-
-        if (value is IValidatable)
-            return (((IValidatable)value).Validate(targetName));
-
-        var enumerableIValidatable = value as IEnumerable<IValidatable>;
-        if (enumerableIValidatable!=null)//List<IValidatable>, IValidatable[]
-        {
-            foreach(var v in enumerableIValidatable)
-            {
-              if (v==null) continue;
-              var error = v.Validate(targetName);
-              if (error!=null) return error;
-            }
-            return null;
-        }
-
-        var enumerableKVP = value as IEnumerable<KeyValuePair<string, IValidatable>>;
-        if (enumerableKVP!=null)//Dictionary<string, IValidatable>
-        {
-            foreach(var kv in enumerableKVP)
-            {
-              var v = kv.Value;
-              if (v==null) continue;
-              var error = v.Validate(targetName);
-              if (error!=null) return error;
-            }
-            return null;
-        }
-
-        if (atr.HasValueList)//check dictionary
-        {
-            var parsed = atr.ParseValueList();
-            if (isSimpleKeyStringMap(parsed))
-            {
-              if (!parsed.ContainsKey(value.ToString()))
-                  return new FieldValidationException(Schema.Name, fdef.Name, StringConsts.CRUD_FIELD_VALUE_IS_NOT_IN_LIST_ERROR);
-            }
-        }
-
-        if (atr.MinLength>0)
-            if (value.ToString().Length<atr.MinLength)
-                return new FieldValidationException(Schema.Name, fdef.Name, StringConsts.CRUD_FIELD_VALUE_MIN_LENGTH_ERROR);
-
-        if (atr.MaxLength>0)
-            if (value.ToString().Length>atr.MaxLength)
-                return new FieldValidationException(Schema.Name, fdef.Name, StringConsts.CRUD_FIELD_VALUE_MAX_LENGTH_ERROR);
-
-        if (atr.Kind==DataKind.ScreenName)
-        {
-            if (!Azos.Text.DataEntryUtils.CheckScreenName(value.ToString()))
-                return new FieldValidationException(Schema.Name, fdef.Name, StringConsts.CRUD_FIELD_VALUE_SCREEN_NAME_ERROR);
-        }
-        else if (atr.Kind==DataKind.EMail)
-        {
-            if (!Azos.Text.DataEntryUtils.CheckEMail(value.ToString()))
-                return new FieldValidationException(Schema.Name, fdef.Name, StringConsts.CRUD_FIELD_VALUE_EMAIL_ERROR);
-        }
-        else if (atr.Kind==DataKind.Telephone)
-        {
-            if (!Azos.Text.DataEntryUtils.CheckTelephone(value.ToString()))
-                return new FieldValidationException(Schema.Name, fdef.Name, StringConsts.CRUD_FIELD_VALUE_PHONE_ERROR);
-        }
-
-
-
-        if (value is IComparable)
-        {
-            var error = CheckMinMax(atr, fdef.Name, (IComparable)value);
-            if (error!=null) return error;
-        }
-
-        if (atr.FormatRegExp.IsNotNullOrWhiteSpace())
-        {
-            //For those VERY RARE cases when RegExpFormat may need to be applied to complex types, i.e. StringBuilder
-            //set the flag in metadata to true, otherwise regexp gets matched only for STRINGS
-            var complex = atr.Metadata==null? false
-                                            : atr.Metadata
-                                                .AttrByName("validate-format-regexp-complex-types")
-                                                .ValueAsBool(false);
-            if (complex || value is string)
-            {
-              if (!System.Text.RegularExpressions.Regex.IsMatch(value.ToString(), atr.FormatRegExp))
-                return new FieldValidationException(Schema.Name, fdef.Name,
-                  StringConsts.CRUD_FIELD_VALUE_REGEXP_ERROR.Args(atr.FormatDescription ?? "Input format: {0}".Args(atr.FormatRegExp)));
-            }
-        }
-
-        return null;
     }
 
     /// <summary>
@@ -767,13 +609,16 @@ namespace Azos.Data
 
 
     /// <summary>
-    /// Override to perform dynamic lookup of field value list for the specified field.
-    /// This method is used by client ui/scaffolding to extract dynamic lookup values
-    /// as dictated by business logic. This method IS NOT used by doc validation, only by client
-    /// that feeds from doc metadata.
-    /// This is a simplified version of GetClientFieldDef
+    /// Override to get a list of permissible field values for the specified field for the specified target.
+    /// This method is used by validation to extract dynamic pick list entries form data stores
+    /// as dictated by business logic. The override must be efficient and typically rely on caching of
+    /// values gotten from the datastore. This method should NOT return more than a manageable limited number of records (e.g. less than 100)
+    /// in a single form drop-down/combo, as the large lookups are expected to be implemented using complex lookup models (e.g. dialog boxes in UI).
+    /// Return a null to indicate an absence of a value list for the specified field.
+    /// Return an empty JsonDataMap to indicate that dynamic value list is present, but there is nothing to check against - this is used to
+    /// override a static fdef.ValueList which would be enforced otherwise.
     /// </summary>
-    public virtual JsonDataMap GetClientFieldValueList(Schema.FieldDef fdef,
+    public virtual JsonDataMap GetDynamicFieldValueList(Schema.FieldDef fdef,
                                                         string targetName,
                                                         string isoLang)
     {
@@ -786,7 +631,7 @@ namespace Azos.Data
     /// (i.e. field description, requirement, value list etc.) as dictated by business logic.
     /// This method IS NOT used by doc validation, only by client that feeds from doc metadata.
     /// The default implementation returns the original field def, you can return a substituted field def
-    ///  per particular business logic
+    ///  for a specific business logic need
     /// </summary>
     public virtual Schema.FieldDef GetClientFieldDef(Schema.FieldDef fdef,
                                                       string targetName,
@@ -814,52 +659,59 @@ namespace Azos.Data
     #region IJSONWritable
 
     /// <summary>
-    /// Writes row as JSON either as an array or map depending on JSONWritingOptions.RowsAsMap setting.
-    /// Do not call this method directly, instead call rowset.ToJSON() or use JSONWriter class
+    /// Writes doc as JSON either as an array or map depending on JSONWritingOptions.RowsAsMap setting.
+    /// Do not call this method directly, instead call rowset.ToJSON() or use JSONWriter class.
+    /// Override to perform custom JSOn serialization
     /// </summary>
     public virtual void WriteAsJson(System.IO.TextWriter wri, int nestingLevel, JsonWritingOptions options = null)
     {
-        if (options==null || !options.RowsAsMap)
+      if (options==null || !options.RowsAsMap)
+      {
+        JsonWriter.WriteArray(wri, this, nestingLevel, options);
+        return;
+      }
+
+      var map = new Dictionary<string, object>();
+
+      foreach(var fd in Schema)
+      {
+        string name;
+
+        var val = FilterJsonSerializerField(fd, options, out name);
+        if (name.IsNullOrWhiteSpace()) continue;//field was excluded for Json serialization
+
+        AddJsonSerializerField(fd, options, map, name, val);
+      }
+
+      if (this is IAmorphousData amorph)
+      {
+        if (amorph.AmorphousDataEnabled)
         {
-          JsonWriter.WriteArray(wri, this, nestingLevel, options);
-          return;
-        }
-
-        var map = new Dictionary<string, object>();
-
-        foreach(var fd in Schema)
-        {
-          string name;
-
-          var val = FilterJsonSerializerField(fd, options, out name);
-          if (name.IsNullOrWhiteSpace()) continue;
-
-          AddJsonSerializerField(fd, options, map, name, val);
-        }
-
-        if (this is IAmorphousData amorph)
-        {
-          if (amorph.AmorphousDataEnabled)
+          foreach(var kv in amorph.AmorphousData)
           {
-            foreach(var kv in amorph.AmorphousData)
-            {
-              var key = kv.Key;
-              while(map.ContainsKey(key)) key+="_";
-              AddJsonSerializerField(null, options, map, key, kv.Value);
-            }
+            var key = kv.Key;
+            while(map.ContainsKey(key)) key += "_";
+            AddJsonSerializerField(null, options, map, key, kv.Value);
           }
         }
+      }
 
-        JsonWriter.WriteMap(wri, map, nestingLevel, options);
+      JsonWriter.WriteMap(wri, map, nestingLevel, options);//perform actual Json writing
     }
 
-
-
-    public (bool match, IJsonReadable self) ReadAsJson(object data, bool fromUI, JsonReader.NameBinding? nameBinding)
+    /// <summary>
+    /// Override to perform custom deserialization from Json.
+    /// The default implementation delegates the work to JsonReader class
+    /// </summary>
+    /// <param name="data">Data to deserialize, must be JsonDataMap to succeed</param>
+    /// <param name="fromUI">True is passed when the deserialization is coming from a datagram supplied by user interface</param>
+    /// <param name="options">Specifies how to bind names</param>
+    /// <returns>Tuple of (bool match, IJsonReadable self)</returns>
+    public virtual (bool match, IJsonReadable self) ReadAsJson(object data, bool fromUI, JsonReader.DocReadOptions? options)
     {
       if (data is JsonDataMap map)
       {
-        JsonReader.ToDoc(this, map, fromUI, nameBinding);
+        JsonReader.ToDoc(this, map, fromUI, options);
         return (true, this);
       }
       return (false, this);
@@ -868,39 +720,6 @@ namespace Azos.Data
     #endregion
 
     #region Protected
-
-    protected Exception CheckMinMax(FieldAttribute atr, string fName, IComparable val)
-    {
-      if (atr.Min != null)
-      {
-          var bound = atr.Min as IComparable;
-          if (bound != null)
-          {
-              var tval = val.GetType();
-
-              bound = Convert.ChangeType(bound, tval) as IComparable;
-
-              if (val.CompareTo(bound)<0)
-                  return new FieldValidationException(Schema.Name, fName, StringConsts.CRUD_FIELD_VALUE_MIN_BOUND_ERROR);
-          }
-      }
-
-      if (atr.Max != null)
-      {
-          var bound = atr.Max as IComparable;
-          if (bound != null)
-          {
-              var tval = val.GetType();
-
-              bound = Convert.ChangeType(bound, tval) as IComparable;
-
-              if (val.CompareTo(bound)>0)
-                  return new FieldValidationException(Schema.Name, fName, StringConsts.CRUD_FIELD_VALUE_MAX_BOUND_ERROR);
-          }
-      }
-
-      return null;
-    }
 
     /// <summary>
     /// Override to filter-out some fields from serialization to JSON, or change field values.
@@ -956,16 +775,6 @@ namespace Azos.Data
 
 
     #region .pvt
-
-    private bool isSimpleKeyStringMap(JsonDataMap map)
-    {
-      if (map == null) return false;
-
-      foreach (var val in map.Values)
-        if (val != null && !(val is string)) return false;
-
-      return true;
-    }
 
     private struct docFieldValueEnumerator : IEnumerator<object>
     {

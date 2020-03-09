@@ -4,11 +4,6 @@
  * See the LICENSE file in the project root for more information.
 </FILE_LICENSE>*/
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
 namespace Azos
 {
   /// <summary>
@@ -48,6 +43,9 @@ namespace Azos
         return pow == n ? n : pow * powBase;
     }
 
+    /// <summary>
+    /// Ensures that an integer value is between the low and high bounds inclusive of the edge points
+    /// </summary>
     public static int MinMax(int min, int value, int max)
     {
         if (min > max) throw new AzosException(StringConsts.ARGUMENT_ERROR + "MinMax(min > max)");
@@ -55,6 +53,12 @@ namespace Azos
         if (value > max) value = max;
         return value;
     }
+
+    /// <summary>
+    /// Ensures that an integer value is between the low and high bounds inclusive of the edge points
+    /// </summary>
+    public static int KeepBetween(this int value, int min, int max)
+     => MinMax(min, value, max);
 
     /// <summary>
     /// Returns argument increased to the nearest number divisible by 8

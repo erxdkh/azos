@@ -24,7 +24,7 @@ namespace Azos.Wave.Mvc
       {
         var apiAttr = tController.GetCustomAttribute<ApiControllerDocAttribute>();
         if (apiAttr!=null)
-        return describe(tController, instance, apictx, dataRoot, overrideRules);
+          return describe(tController, instance, apictx, dataRoot, overrideRules);
       }
 
       return null;
@@ -42,7 +42,7 @@ namespace Azos.Wave.Mvc
       cdata.AddAttributeNode("uri-base", cattr.BaseUri);
       cdata.AddAttributeNode("auth", cattr.Authentication);
 
-      cdata.AddAttributeNode("doc-content", docContent);
+      cdata.AddAttributeNode("doc-content-tpl", docContent);
 
       var allMethodContexts = apictx.Generator.GetApiMethods(tController, apictx.ApiDocAttr);
       foreach(var mctx in allMethodContexts)
@@ -71,14 +71,13 @@ namespace Azos.Wave.Mvc
         edata.AddAttributeNode("uri", epuri);
         writeCollection(mctx.ApiEndpointDocAttr.Methods, "method", mrequest, ':');
 
-        //docAnchor
-        var docAnchor = mctx.ApiEndpointDocAttr.DocAnchor.Default("### "+epuri);
-        edata.AddAttributeNode("doc-content", MarkdownUtils.GetSectionContent(docContent, docAnchor));
-
         //Get all method attributes except ApiDoc
         var epattrs = mctx.Method
                           .GetCustomAttributes(true)
-                          .Where(a => !(a is ApiDocAttribute) && !(a is ActionBaseAttribute));
+                          .Where(a => !(a is ApiDocAttribute) &&
+                                      !(a is ActionBaseAttribute) &&
+                                      !apictx.Generator.IgnoreTypePatterns.Any(ignore => a.GetType().FullName.MatchPattern(ignore))
+                                );
 
         writeInstanceCollection(epattrs.Where(a => !(a is IInstanceCustomMetadataProvider) ||
                                                     (a is IInstanceCustomMetadataProvider cip &&
@@ -90,12 +89,51 @@ namespace Azos.Wave.Mvc
                                    .ToArray(),
                                    TYPE_REF, edata, apictx.Generator);//distinct attr types
 
-        //todo Get app parameters look for Docs and register them and also permissions
+        //get method parameters
         var epargs = mctx.Method.GetParameters()
-                         .Where(pi => !pi.IsOut && !pi.ParameterType.IsByRef && !apictx.Generator.IsWellKnownType(pi.ParameterType) )
+                         .Where(pi => !pi.IsOut &&
+                                      !pi.ParameterType.IsByRef &&
+                                      !apictx.Generator.IsWellKnownType(pi.ParameterType) &&
+                                      !apictx.Generator.IgnoreTypePatterns.Any(ignore => pi.ParameterType.FullName.MatchPattern(ignore))
+                               )
                          .Select(pi => pi.ParameterType).ToArray();
         writeTypeCollection(epargs, TYPE_REF, edata, apictx.Generator);
-      }
+
+        //docAnchor
+        var docAnchor = mctx.ApiEndpointDocAttr.DocAnchor.Default("### "+epuri);
+        var epDocContent = MarkdownUtils.GetSectionContent(docContent, docAnchor);
+
+        edata.AddAttributeNode("doc-content-tpl", epDocContent);
+
+        //finally regenerate doc content expanding all variables
+        epDocContent = MarkdownUtils.EvaluateVariables(epDocContent, (v) =>
+        {
+          if (v.IsNullOrWhiteSpace()) return v;
+          //Escape: ``{{a}}`` -> `{a}`
+          if (v.StartsWith("{") && v.EndsWith("}")) return v.Substring(1, v.Length - 2);
+          if (v.StartsWith("@")) return $"`{{{v}}}`";//do not expand TYPE spec here
+
+          //else navigate config path
+          return edata.Navigate(v).Value;
+        });
+
+        edata.AddAttributeNode("doc-content", epDocContent);
+
+      }//all endpoints
+
+      //finally regenerate doc content expanding all variables for the controller
+      docContent = MarkdownUtils.EvaluateVariables(docContent, (v) =>
+      {
+        if (v.IsNullOrWhiteSpace()) return v;
+        //Escape: ``{{a}}`` -> `{a}`
+        if (v.StartsWith("{") && v.EndsWith("}")) return v.Substring(1, v.Length - 2);
+        if (v.StartsWith("@")) return $"`{{{v}}}`";//do not expand TYPE spec here
+
+        //else navigate config path
+        return cdata.Navigate(v).Value;
+      });
+
+      cdata.AddAttributeNode("doc-content", docContent);
 
       return cdata;
     }
