@@ -24,13 +24,8 @@ namespace Azos.Data
   /// Marker interface - abstraction for data documents, interface used as constraint on other interfaces
   /// typically used in domain entity design. Doc class is the only one implementing this interface
   /// </summary>
-  public interface IDataDoc : IEquatable<Doc>, IEnumerable<Object>, IValidatable, IConfigurable, IConfigurationPersistent
+  public interface IDataDoc : IOfSchema, IEquatable<Doc>, IEnumerable<Object>, IValidatable, IConfigurable, IConfigurationPersistent
   {
-    /// <summary>
-    /// Returns schema object that describes field structure of this document
-    /// </summary>
-    Schema Schema { get; }
-
     /// <summary>
     /// Gets/sets field values by name
     /// </summary>
@@ -344,7 +339,7 @@ namespace Azos.Data
     public abstract object GetFieldValue(Schema.FieldDef fdef);
 
     /// <summary>
-    /// Sets value of the field, for typeddocs it accesses property using reflection; for dynamic rows it sets data into
+    /// Sets value of the field, for typeddocs it accesses property using reflection/lambda; for dynamic rows it sets data into
     ///  row buffer array using field index(order)
     /// </summary>
     public abstract void SetFieldValue(Schema.FieldDef fdef, object value);
@@ -620,7 +615,7 @@ namespace Azos.Data
     /// </summary>
     public virtual JsonDataMap GetDynamicFieldValueList(Schema.FieldDef fdef,
                                                         string targetName,
-                                                        string isoLang)
+                                                        Atom isoLang)
     {
       return null;
     }
@@ -635,7 +630,7 @@ namespace Azos.Data
     /// </summary>
     public virtual Schema.FieldDef GetClientFieldDef(Schema.FieldDef fdef,
                                                       string targetName,
-                                                      string isoLang)
+                                                      Atom isoLang)
     {
       return fdef;
     }
@@ -649,7 +644,7 @@ namespace Azos.Data
     /// </summary>
     public virtual object GetClientFieldValue(Schema.FieldDef fdef,
                                               string targetName,
-                                              string isoLang)
+                                              Atom isoLang)
     {
       return GetFieldValue(fdef);
     }
@@ -657,6 +652,41 @@ namespace Azos.Data
     #endregion
 
     #region IJSONWritable
+
+    /// <summary>
+    /// Returns this object converted to JsonDataMap. Only shallow conversion is done, that is:
+    /// any complex values are added as-is.
+    /// This method is the backbone of DOC to JSON serialization
+    /// </summary>
+    public virtual JsonDataMap ToJsonDataMap(JsonWritingOptions options = null)
+    {
+      var map = new JsonDataMap();
+
+      foreach (var fd in Schema)
+      {
+        string name;
+
+        var val = FilterJsonSerializerField(fd, options, out name);
+        if (name.IsNullOrWhiteSpace()) continue;//field was excluded for Json serialization
+
+        AddJsonSerializerField(fd, options, map, name, val);
+      }
+
+      if (this is IAmorphousData amorph)
+      {
+        if (amorph.AmorphousDataEnabled)
+        {
+          foreach (var kv in amorph.AmorphousData)
+          {
+            var key = kv.Key;
+            while (map.ContainsKey(key)) key += "_";
+            AddJsonSerializerField(null, options, map, key, kv.Value);
+          }
+        }
+      }
+
+      return map;
+    }
 
     /// <summary>
     /// Writes doc as JSON either as an array or map depending on JSONWritingOptions.RowsAsMap setting.
@@ -671,30 +701,7 @@ namespace Azos.Data
         return;
       }
 
-      var map = new Dictionary<string, object>();
-
-      foreach(var fd in Schema)
-      {
-        string name;
-
-        var val = FilterJsonSerializerField(fd, options, out name);
-        if (name.IsNullOrWhiteSpace()) continue;//field was excluded for Json serialization
-
-        AddJsonSerializerField(fd, options, map, name, val);
-      }
-
-      if (this is IAmorphousData amorph)
-      {
-        if (amorph.AmorphousDataEnabled)
-        {
-          foreach(var kv in amorph.AmorphousData)
-          {
-            var key = kv.Key;
-            while(map.ContainsKey(key)) key += "_";
-            AddJsonSerializerField(null, options, map, key, kv.Value);
-          }
-        }
-      }
+      var map = ToJsonDataMap(options);
 
       JsonWriter.WriteMap(wri, map, nestingLevel, options);//perform actual Json writing
     }

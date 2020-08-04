@@ -20,8 +20,18 @@ namespace Azos
     public const string SITE_FLD_NAME = "GUARD-SITE";
     public const string PARAM_FLD_NAME = "GUARD-PARAM";
 
-    public CallGuardException(string callSite, string parameterName, string message) : base(message) { }
-    public CallGuardException(string callSite, string parameterName, string message, Exception inner) : base(message, inner) { }
+    public CallGuardException(string callSite, string parameterName, string message) : base(message)
+    {
+      CallSite = callSite;
+      ParamName = parameterName;
+    }
+
+    public CallGuardException(string callSite, string parameterName, string message, Exception inner) : base(message, inner)
+    {
+      CallSite = callSite;
+      ParamName = parameterName;
+    }
+
     protected CallGuardException(SerializationInfo info, StreamingContext context) : base(info, context)
     {
       PutDetailsInHttpStatus = info.GetBoolean(DETAILS_FLD_NAME);
@@ -135,7 +145,7 @@ namespace Azos
         var callSite = callSiteOf(callFile, callLine, callMember);
         throw new CallGuardException(callSite,
                                  name,
-                                 StringConsts.GUARDED_PARAMETER_MAY_NOT_BE_NULL_ERROR
+                                 StringConsts.GUARDED_CLAUSE_MAY_NOT_BE_NULL_ERROR
                                              .Args(callSite ?? CoreConsts.UNKNOWN, name ?? CoreConsts.UNKNOWN));
       }
       return obj;
@@ -156,7 +166,7 @@ namespace Azos
         var callSite = callSiteOf(callFile, callLine, callMember);
         throw new CallGuardException(callSite,
                                  name,
-                                 StringConsts.GUARDED_PARAMETER_MAY_NOT_BE_NULL_ERROR
+                                 StringConsts.GUARDED_CLAUSE_MAY_NOT_BE_NULL_ERROR
                                              .Args(callSite ?? CoreConsts.UNKNOWN, name ?? CoreConsts.UNKNOWN));
       }
       return value;
@@ -176,7 +186,7 @@ namespace Azos
         var callSite = callSiteOf(callFile, callLine, callMember);
         throw new CallGuardException(callSite,
                                  name,
-                                 StringConsts.GUARDED_PARAMETER_OFTYPE_ERROR
+                                 StringConsts.GUARDED_CLAUSE_OFTYPE_ERROR
                                              .Args(callSite ?? CoreConsts.UNKNOWN, name ?? CoreConsts.UNKNOWN, typeof(T).Name));
       }
       return type;
@@ -197,7 +207,7 @@ namespace Azos
         var callSite = callSiteOf(callFile, callLine, callMember);
         throw new CallGuardException(callSite,
                                  name,
-                                 StringConsts.GUARDED_PARAMETER_OFTYPE_ERROR
+                                 StringConsts.GUARDED_CLAUSE_OFTYPE_ERROR
                                              .Args(callSite ?? CoreConsts.UNKNOWN, name ?? CoreConsts.UNKNOWN, expectedType.Name));
       }
       return type;
@@ -205,7 +215,7 @@ namespace Azos
 
 
     /// <summary>
-    /// Ensures that a type value is not null and is of the specified type or one of its subtypes
+    /// Ensures that a value is not null and is of the specified type or one of its subtypes
     /// </summary>
     public static TValue ValueIsOfType<T, TValue>(this TValue value,
                                string name = null,
@@ -218,14 +228,14 @@ namespace Azos
         var callSite = callSiteOf(callFile, callLine, callMember);
         throw new CallGuardException(callSite,
                                  name,
-                                 StringConsts.GUARDED_PARAMETER_VALUEOFTYPE_ERROR
+                                 StringConsts.GUARDED_CLAUSE_VALUEOFTYPE_ERROR
                                              .Args(callSite ?? CoreConsts.UNKNOWN, name ?? CoreConsts.UNKNOWN, typeof(T).Name));
       }
       return value;
     }
 
     /// <summary>
-    /// Ensures that a type value is not null and is of the specified type or one of its subtypes
+    /// Ensures that a value is not null and is of the specified type or one of its subtypes
     /// </summary>
     public static TValue ValueIsOfType<TValue>(this TValue value,
                                Type expectedType,
@@ -239,12 +249,30 @@ namespace Azos
         var callSite = callSiteOf(callFile, callLine, callMember);
         throw new CallGuardException(callSite,
                                  name,
-                                 StringConsts.GUARDED_PARAMETER_VALUEOFTYPE_ERROR
+                                 StringConsts.GUARDED_CLAUSE_VALUEOFTYPE_ERROR
                                              .Args(callSite ?? CoreConsts.UNKNOWN, name ?? CoreConsts.UNKNOWN, expectedType.Name));
       }
       return value;
     }
 
+    /// <summary>
+    /// Ensures that the value is not null and can be type-casted to TResult, then performs type cast
+    /// throwing CallGuardException otherwise
+    /// </summary>
+    public static TResult CastTo<TResult>(this object value,
+                               string name = null,
+                               [CallerFilePath]   string callFile = null,
+                               [CallerLineNumber] int callLine = 0,
+                               [CallerMemberName] string callMember = null)
+    {
+      if (value is TResult result) return result;
+
+      var callSite = callSiteOf(callFile, callLine, callMember);
+      throw new CallGuardException(callSite,
+                                  name,
+                                  StringConsts.GUARDED_CLAUSE_TYPECAST_ERROR
+                                              .Args(callSite ?? CoreConsts.UNKNOWN, name ?? CoreConsts.UNKNOWN, typeof(TResult).DisplayNameWithExpandedGenericArgs()));
+    }
 
     /// <summary>
     /// Ensures that a config node value is non-null existing node
@@ -260,7 +288,7 @@ namespace Azos
         var callSite = callSiteOf(callFile, callLine, callMember);
         throw new CallGuardException(callSite,
                                  name,
-                                 StringConsts.GUARDED_CONFIG_NODE_PARAMETER_MAY_NOT_BE_EMPTY_ERROR
+                                 StringConsts.GUARDED_CONFIG_NODE_CLAUSE_MAY_NOT_BE_EMPTY_ERROR
                                              .Args(callSite ?? CoreConsts.UNKNOWN, name ?? CoreConsts.UNKNOWN));
       }
       return node;
@@ -280,7 +308,7 @@ namespace Azos
         var callSite = callSiteOf(callFile, callLine, callMember);
         throw new CallGuardException(callSite,
                                  name,
-                                 StringConsts.GUARDED_STRING_PARAMETER_MAY_NOT_BE_BLANK_ERROR
+                                 StringConsts.GUARDED_STRING_CLAUSE_MAY_NOT_BE_BLANK_ERROR
                                              .Args(callSite ?? CoreConsts.UNKNOWN, name ?? CoreConsts.UNKNOWN));
       }
       return str;
@@ -302,7 +330,7 @@ namespace Azos
         var callSite = callSiteOf(callFile, callLine, callMember);
         throw new CallGuardException(callSite,
                                  name,
-                                 StringConsts.GUARDED_STRING_PARAMETER_MAY_NOT_EXCEED_MAX_LEN_ERROR
+                                 StringConsts.GUARDED_STRING_CLAUSE_MAY_NOT_EXCEED_MAX_LEN_ERROR
                                             .Args(callSite ?? CoreConsts.UNKNOWN,
                                                   name ?? CoreConsts.UNKNOWN,
                                                   str.TakeFirstChars(15, ".."),
@@ -328,7 +356,7 @@ namespace Azos
         var callSite = callSiteOf(callFile, callLine, callMember);
         throw new CallGuardException(callSite,
                                      name,
-                                     StringConsts.GUARDED_STRING_PARAMETER_MAY_NOT_BE_LESS_MIN_LEN_ERROR
+                                     StringConsts.GUARDED_STRING_CLAUSE_MAY_NOT_BE_LESS_MIN_LEN_ERROR
                                                  .Args(callSite ?? CoreConsts.UNKNOWN,
                                                   name ?? CoreConsts.UNKNOWN,
                                                   str.TakeFirstChars(15, ".."),
@@ -355,7 +383,7 @@ namespace Azos
         var callSite = callSiteOf(callFile, callLine, callMember);
         throw new CallGuardException(callSite,
                                      name,
-                                     StringConsts.GUARDED_STRING_PARAMETER_MUST_BE_BETWEEN_MIN_MAX_LEN_ERROR
+                                     StringConsts.GUARDED_STRING_CLAUSE_MUST_BE_BETWEEN_MIN_MAX_LEN_ERROR
                                                  .Args(callSite ?? CoreConsts.UNKNOWN,
                                                   name ?? CoreConsts.UNKNOWN,
                                                   str.TakeFirstChars(15, ".."),
@@ -365,5 +393,29 @@ namespace Azos
       }
       return str;
     }
+
+
+    /// <summary>
+    /// Ensures that the condition is true
+    /// </summary>
+    public static T IsTrue<T>(this T value,
+                               Func<T, bool>  f,
+                               string name = null,
+                               [CallerFilePath]   string callFile = null,
+                               [CallerLineNumber] int callLine = 0,
+                               [CallerMemberName] string callMember = null)
+    {
+      if (f!=null && !f(value))
+      {
+        var callSite = callSiteOf(callFile, callLine, callMember);
+        throw new CallGuardException(callSite,
+                                 name,
+                                 StringConsts.GUARDED_CLAUSE_CONDITION_ERROR
+                                             .Args(callSite ?? CoreConsts.UNKNOWN, name ?? CoreConsts.UNKNOWN));
+      }
+      return value;
+    }
+
+
   }
 }

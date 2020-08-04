@@ -1,8 +1,7 @@
 @echo on
 
-set VER=1.2.5.1
-set HEADLINE=Introduce JazonReaderBackend
-
+set VER=1.4.14
+set HEADLINE=Log Chronicles RTM
 call vs2017-build-release %VER%
 
 if errorlevel 1 goto BUILD_ERROR

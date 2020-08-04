@@ -8,7 +8,6 @@ using System;
 
 using Azos.Data;
 using Azos.Financial;
-using Azos.Serialization.BSON;
 
 namespace Azos.Instrumentation
 {
@@ -32,21 +31,11 @@ namespace Azos.Instrumentation
     [Field, Field(isArow: true, backendName: "v")]
     public long Value { get { return m_Value; } }
 
-    public override object ValueAsObject { get { return m_Value; } }
+    public override object ValueAsObject => m_Value;
 
-    public override string ValueUnitName { get { return CoreConsts.UNIT_NAME_UNSPECIFIED; } }
+    public override double? RefValue => m_Value;
 
-    public override void SerializeToBSON(BSONSerializer serializer, BSONDocument doc, IBSONSerializable parent, ref object context)
-    {
-      base.SerializeToBSON(serializer, doc, parent, ref context);
-      doc.Add(BSON_FLD_VALUE, m_Value);
-    }
-
-    public override void DeserializeFromBSON(BSONSerializer serializer, BSONDocument doc, ref object context)
-    {
-      m_Value = doc.TryGetObjectValueOf(BSON_FLD_VALUE).AsLong();
-      base.DeserializeFromBSON(serializer, doc, ref context);
-    }
+    public override string ValueUnitName => CoreConsts.UNIT_NAME_UNSPECIFIED;
 
     [NonSerialized]
     private long m_Sum;
@@ -84,21 +73,11 @@ namespace Azos.Instrumentation
     [Field, Field(isArow: true, backendName: "v")]
     public double Value { get { return m_Value; } }
 
-    public override object ValueAsObject { get { return m_Value; } }
+    public override object ValueAsObject => m_Value;
 
-    public override string ValueUnitName { get { return CoreConsts.UNIT_NAME_UNSPECIFIED; } }
+    public override double? RefValue => m_Value;
 
-    public override void SerializeToBSON(BSONSerializer serializer, BSONDocument doc, IBSONSerializable parent, ref object context)
-    {
-      base.SerializeToBSON(serializer, doc, parent, ref context);
-      doc.Add(BSON_FLD_VALUE, m_Value);
-    }
-
-    public override void DeserializeFromBSON(BSONSerializer serializer, BSONDocument doc, ref object context)
-    {
-      m_Value = doc.TryGetObjectValueOf(BSON_FLD_VALUE).AsDouble();
-      base.DeserializeFromBSON(serializer, doc, ref context);
-    }
+    public override string ValueUnitName => CoreConsts.UNIT_NAME_UNSPECIFIED;
 
     [NonSerialized]
     private double m_Sum;
@@ -137,21 +116,11 @@ namespace Azos.Instrumentation
     [Field, Field(isArow: true, backendName: "v")]
     public decimal Value { get { return m_Value; } }
 
-    public override object ValueAsObject { get { return m_Value; } }
+    public override object ValueAsObject => m_Value;
 
-    public override string ValueUnitName { get { return CoreConsts.UNIT_NAME_UNSPECIFIED; } }
+    public override double? RefValue => (double)m_Value;
 
-    public override void SerializeToBSON(BSONSerializer serializer, BSONDocument doc, IBSONSerializable parent, ref object context)
-    {
-      base.SerializeToBSON(serializer, doc, parent, ref context);
-      doc.Set(DataDocConverter.Decimal_CLRtoBSON(BSON_FLD_VALUE, m_Value));
-    }
-
-    public override void DeserializeFromBSON(BSONSerializer serializer, BSONDocument doc, ref object context)
-    {
-      base.DeserializeFromBSON(serializer, doc, ref context);
-      m_Value = DataDocConverter.Decimal_BSONtoCLR(doc[BSON_FLD_VALUE]);
-    }
+    public override string ValueUnitName => CoreConsts.UNIT_NAME_UNSPECIFIED;
 
     [NonSerialized]
     private decimal m_Sum;
@@ -181,7 +150,7 @@ namespace Azos.Instrumentation
 
     private static string makeSource(string source, Amount value)
     {
-      var prefix = value.CurrencyISO + CURRENCY_DELIM;
+      var prefix = value.ISO.Value + CURRENCY_DELIM;
       if (source == null || !source.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
         return prefix + source;
       else
@@ -191,13 +160,13 @@ namespace Azos.Instrumentation
     protected AmountGauge(string source, Amount value) : base(makeSource(source, value))
     {
       m_Value = value;
-      m_Sum = new Amount(value.CurrencyISO, 0M);
+      m_Sum = new Amount(value.ISO, 0M);
     }
 
     protected AmountGauge(string source, Amount value, DateTime utcDateTime, bool skipSourceConstruction = false) : base(makeSource(source, value), utcDateTime)
     {
       m_Value = value;
-      m_Sum = new Amount(value.CurrencyISO, 0M);
+      m_Sum = new Amount(value.ISO, 0M);
     }
 
     private Amount m_Value;
@@ -208,23 +177,13 @@ namespace Azos.Instrumentation
     [Field, Field(isArow: true, backendName: "v")]
     public Amount Value { get { return m_Value; } }
 
-    public override object ValueAsObject { get { return m_Value; } }
+    public override object ValueAsObject => m_Value;
 
-    public override object PlotValue { get { return m_Value.Value; } }
+    public override object PlotValue  => m_Value.Value;
 
-    public override string ValueUnitName { get { return CoreConsts.UNIT_NAME_MONEY; } }
+    public override double? RefValue => (double)m_Value.Value;
 
-    public override void SerializeToBSON(BSONSerializer serializer, BSONDocument doc, IBSONSerializable parent, ref object context)
-    {
-      base.SerializeToBSON(serializer, doc, parent, ref context);
-      doc.Set(DataDocConverter.Amount_CLRtoBSON(BSON_FLD_VALUE, m_Value));
-    }
-
-    public override void DeserializeFromBSON(BSONSerializer serializer, BSONDocument doc, ref object context)
-    {
-      base.DeserializeFromBSON(serializer, doc, ref context);
-      m_Value = DataDocConverter.Amount_BSONtoCLR((BSONDocumentElement)doc[BSON_FLD_VALUE]);
-    }
+    public override string ValueUnitName => CoreConsts.UNIT_NAME_MONEY;
 
     [NonSerialized]
     private Amount m_Sum;

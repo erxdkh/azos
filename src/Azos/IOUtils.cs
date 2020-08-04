@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Azos
@@ -41,6 +42,7 @@ namespace Azos
     /// </summary>
     Printable
   }
+
 
   /// <summary>
   /// Provides IO-related utility extensions
@@ -490,6 +492,18 @@ namespace Azos
     }
 
     /// <summary>
+    /// Reads an unsigned integer encoded as big endian from buffer at the specified index
+    /// and increments the idx by the number of bytes read
+    /// </summary>
+    public static unsafe uint ReadBEUInt32(byte* ptr, ref int idx)
+    {
+      return  ((uint)ptr[idx++] << 24) +
+              ((uint)ptr[idx++] << 16) +
+              ((uint)ptr[idx++] << 8) +
+               (uint)ptr[idx++];
+    }
+
+    /// <summary>
     /// Reads an unsigned integer encoded as little endian from buffer at the specified index
     /// and increments the idx by the number of bytes read
     /// </summary>
@@ -539,6 +553,22 @@ namespace Azos
              ((ulong)buf[idx++] << 16) +
              ((ulong)buf[idx++] << 8) +
              ((ulong)buf[idx++]);
+    }
+
+    /// <summary>
+    /// Reads an integer encoded as big endian from buffer at the specified index
+    /// and increments the idx by the number of bytes read
+    /// </summary>
+    public static unsafe UInt64 ReadBEUInt64(byte* ptr, ref int idx)
+    {
+      return ((ulong)ptr[idx++] << 56) +
+             ((ulong)ptr[idx++] << 48) +
+             ((ulong)ptr[idx++] << 40) +
+             ((ulong)ptr[idx++] << 32) +
+             ((ulong)ptr[idx++] << 24) +
+             ((ulong)ptr[idx++] << 16) +
+             ((ulong)ptr[idx++] << 8) +
+             ((ulong)ptr[idx++]);
     }
 
     /// <summary>
@@ -867,6 +897,17 @@ namespace Azos
     }
 
     /// <summary>
+    /// Writes an unsigned integer encoded as big endian to buffer at the specified index
+    /// </summary>
+    public static unsafe void WriteBEUInt32(byte* ptr, int idx, UInt32 value)
+    {
+      ptr[idx + 0] = (byte)(value >> 24);
+      ptr[idx + 1] = (byte)(value >> 16);
+      ptr[idx + 2] = (byte)(value >> 8);
+      ptr[idx + 3] = (byte)(value);
+    }
+
+    /// <summary>
     /// Writes an unsigned integer encoded as little endian to buffer at the specified index
     /// </summary>
     public static void WriteLEUInt32(this byte[] buf, int idx, UInt32 value)
@@ -906,6 +947,21 @@ namespace Azos
       buf[idx + 5] = (byte)(value >> 16);
       buf[idx + 6] = (byte)(value >> 8);
       buf[idx + 7] = (byte)(value);
+    }
+
+    /// <summary>
+    /// Writes an unsigned long integer encoded as big endian to buffer at the specified index
+    /// </summary>
+    public static unsafe void WriteBEUInt64(byte* ptr, int idx, UInt64 value)
+    {
+      ptr[idx + 0] = (byte)(value >> 56);
+      ptr[idx + 1] = (byte)(value >> 48);
+      ptr[idx + 2] = (byte)(value >> 40);
+      ptr[idx + 3] = (byte)(value >> 32);
+      ptr[idx + 4] = (byte)(value >> 24);
+      ptr[idx + 5] = (byte)(value >> 16);
+      ptr[idx + 6] = (byte)(value >> 8);
+      ptr[idx + 7] = (byte)(value);
     }
 
     /// <summary>
@@ -1241,6 +1297,64 @@ namespace Azos
                       buf[offset++],
                       buf[offset]);
     }
+
+
+    /// <summary>
+    /// Casts Guid data as a tuple of two longs. This is needed to avoid extra allocations
+    /// </summary>
+    public unsafe static (ulong s1, ulong s2) CastGuidToLongs(Guid value)
+    {
+      var praw = (ulong*)&value;
+      return (praw[0], praw[1]);
+    }
+
+    /// <summary>
+    /// Casts two longs as Guid. This is needed to avoid extra allocations
+    /// </summary>
+    public unsafe static Guid CastGuidFromLongs(ulong s1, ulong s2)
+    {
+      var result = Guid.Empty;
+      var praw = (ulong*)&result;
+      praw[0] = s1;
+      praw[1] = s2;
+      return result;
+    }
+
+    /// <summary>
+    /// Efficiently encodes guid into existing byte[] using re-casting thus avoiding extra copies and allocations
+    /// </summary>
+    public static unsafe void FastEncodeGuid(this byte[] buff, int offset, Guid value)
+    {
+      Aver.IsTrue(buff.NonNull(nameof(buff)).Length - offset >= 16, nameof(FastEncodeGuid));
+
+      fixed (byte* pBuff = buff)
+      {
+        var pfrom = (long*)&value;
+        var pto = (long*)(pBuff + offset);
+        pto[0] = pfrom[0];
+        pto[1] = pfrom[1];
+      }
+    }
+
+    /// <summary>
+    /// Efficiently decodes guid from the existing byte[] using re-casting thus avoiding extra copies and allocations
+    /// </summary>
+    public static unsafe Guid FastDecodeGuid(this byte[] buff, int offset)
+    {
+      Aver.IsTrue(buff.NonNull(nameof(buff)).Length - offset >= 16, nameof(FastDecodeGuid));
+
+      var result = Guid.Empty;
+      fixed (byte* pBuff = buff)
+      {
+        var pto = (long*)&result;
+        var pfrom = (long*)(pBuff + offset);
+        pto[0] = pfrom[0];
+        pto[1] = pfrom[1];
+      }
+
+      return result;
+    }
+
 
     /// <summary>
     /// Represents byte[] as a web-safe string, replacing `+` with `-` and `/` with `_`

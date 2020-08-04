@@ -344,7 +344,7 @@ namespace Azos.Apps
     {
         if (m_ShutdownStarted || settings==null) return false;
         lock(m_ConfigSettings)
-          if (!m_ConfigSettings.Contains(settings, Collections.ReferenceEqualityComparer<IConfigSettings>.Default))
+          if (!m_ConfigSettings.Contains(settings, Collections.ReferenceEqualityComparer<IConfigSettings>.Instance))
           {
               m_ConfigSettings.Add(settings);
               return true;
@@ -382,7 +382,7 @@ namespace Azos.Apps
         if (m_ShutdownStarted || notifiable==null) return false;
 
         lock(m_FinishNotifiables)
-          if (!m_FinishNotifiables.Contains(notifiable, Collections.ReferenceEqualityComparer<IApplicationFinishNotifiable>.Default))
+          if (!m_FinishNotifiables.Contains(notifiable, Collections.ReferenceEqualityComparer<IApplicationFinishNotifiable>.Instance))
           {
               m_FinishNotifiables.Add(notifiable);
               return true;
@@ -477,16 +477,27 @@ namespace Azos.Apps
       //try to read from  /config file
       var configFile = m_CommandArgs[CONFIG_SWITCH].AttrByIndex(0).Value;
 
-      if (string.IsNullOrEmpty(configFile))
-          configFile = GetDefaultConfigFileName();
+      var confWasSpecified = true;
+      if (configFile.IsNullOrWhiteSpace())
+      {
+        configFile = GetDefaultConfigFileName();
+        confWasSpecified = false;
+      }
 
 
       Configuration conf;
 
       if (File.Exists(configFile))
-          conf = Configuration.ProviderLoadFromFile(configFile);
+      {
+        conf = Configuration.ProviderLoadFromFile(configFile);
+      }
       else
-          conf = new MemoryConfiguration();
+      {
+        if (confWasSpecified)
+          throw new AzosException(StringConsts.APP_INJECTED_CONFIG_FILE_NOT_FOUND_ERROR.Args(configFile, CONFIG_SWITCH));
+
+        conf = new MemoryConfiguration();
+      }
 
       conf.Application = this;
 
