@@ -22,25 +22,30 @@ namespace Azos.Log
   [Arow("3AD5E8E1-871C-4B8F-AE16-6D04492B17DF")]
   public sealed class Message : TypedDoc, IArchiveLoggable
   {
-    /// <summary>
-    /// Creates log message defaulting from Message.DefaultHostName and UTCTime
-    /// </summary>
-    [Serialization.Slim.SlimDeserializationCtorSkip]
-    public Message()
-    {
-      m_Guid = Guid.NewGuid();
-      m_Host = Platform.Computer.HostName;
-      m_UTCTimeStamp = Ambient.UTCNow;
-      m_App = Apps.ExecutionContext.Application.AppId;
-    }
+    public Message(){ }
 
     /// <summary>
-    /// Creates message with Parameters supplanted with caller file name and line #
+    /// Initializes log message populating Guid, Host, UTCTimeStamp, App if they are unassigned,
+    /// defaulting from Message.DefaultHostName and UTCTime.
+    /// Calling this method multiple time has the same effect
     /// </summary>
-    public Message(object pars, [CallerFilePath] string file = null, [CallerLineNumber] int line = 0) : this()
+    public Message InitDefaultFields(IApplication app = null)
     {
-      SetParamsAsObject(FormatCallerParams(pars, file, line));
-      Source = line;
+      if (app==null) app = Apps.ExecutionContext.Application;
+
+      if (m_Guid == Guid.Empty)
+        m_Guid = Guid.NewGuid();
+
+      if (m_Host.IsNullOrWhiteSpace())
+        m_Host = Platform.Computer.HostName;
+
+      if (m_UTCTimeStamp == default(DateTime))
+        m_UTCTimeStamp = app.TimeSource.UTCNow;
+
+      if (m_App.IsZero)
+        m_App = app.AppId;
+
+      return this;
     }
 
     #region Private Fields
@@ -262,7 +267,7 @@ namespace Azos.Log
 
 
     public override string ToString()
-      => "{0:yyyyMMdd-HHmmss.fff}, {1}, {2}, {3}, {4}, {5}, {6}".Args(m_UTCTimeStamp, m_Guid.ToString().TakeLastChars(8), m_Host, m_Type, Topic, From, Text);
+      => "{0:yyyyMMdd-HHmmss.fff}, {1}, {2}, {3}, {4}, {5}, {6}".Args(m_UTCTimeStamp, m_Guid, m_Host, m_Type, Topic, From, Text);
 
     /// <summary>
     /// Supplants the from string with caller info encoded as JSON string
@@ -322,6 +327,22 @@ namespace Azos.Log
         m_ArchiveDimensions = m_ArchiveDimensions,
       };
 
+
+    protected override object FilterJsonSerializerField(Schema.FieldDef def, JsonWritingOptions options, out string name)
+    {
+      if (
+          (def.Name == nameof(RelatedTo) && RelatedTo == Guid.Empty) ||
+          (def.Name == nameof(Channel) && Channel.IsZero) ||
+          (def.Name == nameof(Parameters) && Parameters.IsNullOrWhiteSpace()) ||
+          (def.Name == nameof(ExceptionData) && ExceptionData==null)  ||
+          (def.Name == nameof(ArchiveDimensions) && ArchiveDimensions.IsNullOrWhiteSpace())
+         )
+      {
+        name = null;
+        return null;
+      }
+      return base.FilterJsonSerializerField(def, options, out name);
+    }
   }
 
   public static class MessageExtensions

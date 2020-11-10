@@ -180,7 +180,7 @@ namespace Azos.Instrumentation
     #endregion
 
     #region Public
-    private static ConstrainedSetLookup<Type, IEnumerable<Type>> s_ViewGroupInterfaces = new ConstrainedSetLookup<Type, IEnumerable<Type>>( tp =>{
+    private static FiniteSetLookup<Type, IEnumerable<Type>> s_ViewGroupInterfaces = new FiniteSetLookup<Type, IEnumerable<Type>>( tp =>{
       var result = tp.GetInterfaces()
                      .Where(i => Attribute.IsDefined(i, typeof(InstrumentViewGroup)))
                      .ToArray();
@@ -265,7 +265,7 @@ namespace Azos.Instrumentation
 
     protected override void AddJsonSerializerField(Schema.FieldDef def, JsonWritingOptions options, Dictionary<string, object> jsonMap, string name, object value)
     {
-      if (def.Name==nameof(GDID))
+      if (def?.Order == 0)
       {
         Serialization.Bix.BixJsonHandler.EmitJsonBixDiscriminator(this, jsonMap);
       }

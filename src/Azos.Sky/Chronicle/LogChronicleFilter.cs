@@ -50,9 +50,10 @@ namespace Azos.Sky.Chronicle
     [Field(isArow: true, backendName: "af", description: "Advanced filter, which can be used for filter by archive dimensions")]
     public Expression AdvancedFilter{  get; set;}
 
-#pragma warning disable 0649
+    [Field(isArow: true, backendName: "crsh", description: "Cross shard, if true then server gets results from all shards")]
+    public bool CrossShard{ get; set;}
+
     [InjectModule] ILogChronicle m_Chronicle;
-#pragma warning restore 0649
 
     protected async override Task<SaveResult<IEnumerable<Message>>> DoSaveAsync()
      => new SaveResult<IEnumerable<Message>>(await m_Chronicle.GetAsync(this));

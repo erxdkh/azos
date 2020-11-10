@@ -1,7 +1,7 @@
 @echo on
 
-set VER=1.4.14
-set HEADLINE=Log Chronicles RTM
+set VER=1.5.7
+set HEADLINE=Service release, ApiDoc fixes 
 call vs2017-build-release %VER%
 
 if errorlevel 1 goto BUILD_ERROR

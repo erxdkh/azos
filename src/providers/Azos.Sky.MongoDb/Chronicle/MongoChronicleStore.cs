@@ -13,7 +13,6 @@ using Azos.Apps;
 using Azos.Log;
 using Azos.Serialization.JSON;
 
-using Azos.Data.Access.MongoDb;
 using Azos.Conf;
 using Azos.Data.Access.MongoDb.Connector;
 using Azos.Sky.Identification;
@@ -26,100 +25,41 @@ namespace Azos.Sky.Chronicle.Server
   /// </summary>
   public sealed class MongoChronicleStore : Daemon, ILogChronicleStoreImplementation, IInstrumentationChronicleStoreImplementation
   {
-    public const string CONFIG_BUNDLED_MONGO_SECTION = "bundled-mongo";
-
     public const string DEFAULT_DB = "sky_chron";
 
     public const string COLLECTION_LOG = "sky_log";
     public const string COLLECTION_INSTR = "sky_ins";
 
-    public const string SEQUENCE_LOG = "chronicle_sky_log";
-    public const string SEQUENCE_INSTR = "chronicle_sky_ins";
-
     public const int MAX_FETCH_DOC_COUNT = 8 * 1024;
     public const int MAX_INSERT_DOC_COUNT = 8 * 1024;
     public const int FETCH_BY_LOG = 128;
 
-
     public MongoChronicleStore(IApplication application) : base(application) { }
     public MongoChronicleStore(IApplicationComponent parent) : base(parent) { }
 
-    protected override void Destructor()
-    {
-      DisposeAndNull(ref m_Bundled);
-      base.Destructor();
-    }
-
-#pragma warning disable 0649
     [Inject] IGdidProviderModule m_Gdid;
 
-    private string m_GdidScopeName;
     private Database m_LogDb;
     private Database m_InstrDb;
 
-
-    [Config(Default = DEFAULT_DB)]
-    private string m_DbNameLog = DEFAULT_DB;
-
-    [Config(Default = DEFAULT_DB)]
-    private string m_DbNameInstr = DEFAULT_DB;
 
     [Config]
     private string m_CsLogDatabase;
 
     [Config]
     private string m_CsInstrDatabase;
-#pragma warning restore 0649
 
     public override string ComponentLogTopic => CoreConsts.INSTRUMENTATION_TOPIC;
 
-    private BundledMongoDb m_Bundled;
-
-    protected override void DoConfigure(IConfigSectionNode node)
-    {
-      base.DoConfigure(node);
-      DisposeAndNull(ref m_Bundled);
-      if (node==null) return;
-
-      var nbundled = node[CONFIG_BUNDLED_MONGO_SECTION];
-      if (nbundled.Exists)
-      {
-        m_Bundled = FactoryUtils.MakeAndConfigureDirectedComponent<BundledMongoDb>(this, nbundled, typeof(BundledMongoDb));
-      }
-    }
 
     protected override void DoStart()
     {
-      m_GdidScopeName = App.EnvironmentName.NonBlank("App.EnvironmentName configured of `app/$environment-name`");
-
-      WriteLog(MessageType.Info, nameof(DoStart), "Chronicle store is configured with GDID scope `app/$environment-name`: " + m_GdidScopeName);
-
       base.DoStart();
 
-      if (m_Bundled != null)
-      {
-        m_Bundled.Start();
-        m_LogDb = m_Bundled.GetDatabase(m_DbNameLog);
-        m_InstrDb = m_Bundled.GetDatabase(m_DbNameInstr);
-      }
-      else
-      {
-        m_LogDb = App.GetMongoDatabaseFromConnectString(m_CsLogDatabase);
-        m_InstrDb = App.GetMongoDatabaseFromConnectString(m_CsInstrDatabase);
-      }
+      m_LogDb = App.GetMongoDatabaseFromConnectString(m_CsLogDatabase, DEFAULT_DB);
+      m_InstrDb = App.GetMongoDatabaseFromConnectString(m_CsInstrDatabase, DEFAULT_DB);
     }
 
-    protected override void DoSignalStop()
-    {
-      base.DoSignalStop();
-      if (m_Bundled != null) m_Bundled.SignalStop();
-    }
-
-    protected override void DoWaitForCompleteStop()
-    {
-      base.DoWaitForCompleteStop();
-      if (m_Bundled != null) m_Bundled.WaitForCompleteStop();
-    }
 
     public Task<IEnumerable<Message>> GetAsync(LogChronicleFilter filter) => Task.FromResult(get(filter));
     private IEnumerable<Message> get(LogChronicleFilter filter)
@@ -147,8 +87,12 @@ namespace Azos.Sky.Chronicle.Server
 
     public Task WriteAsync(LogBatch data)
     {
-      var toSend = data.NonNull(nameof(data)).Data.NonNull(nameof(data));
       if (!Running) return Task.CompletedTask;
+
+      var toSend = data.NonNull(nameof(data))
+                       .Data.NonNull(nameof(data))
+                       .Where(m => m != null);
+
 
       var cLog = m_LogDb[COLLECTION_LOG];
 
@@ -156,11 +100,13 @@ namespace Azos.Sky.Chronicle.Server
       using(var errors = new ErrorLogBatcher(App.Log){Type = MessageType.Critical, From = this.ComponentLogFromPrefix+nameof(WriteAsync), Topic = ComponentLogTopic})
       foreach (var batch in toSend.BatchBy(0xf))
       {
-        var bsons = batch.Select(msg => {
+        var bsons = batch.Select(msg =>
+        {
           if (msg.Gdid.IsZero)
-          {
-            msg.Gdid = m_Gdid.Provider.GenerateOneGdid(scopeName: m_GdidScopeName, sequenceName: COLLECTION_LOG);
-          }
+            msg.Gdid = m_Gdid.Provider.GenerateOneGdid(scopeName: SysConsts.GDID_NS_CHRONICLES, sequenceName: COLLECTION_LOG);
+
+          msg.InitDefaultFields(App);
+
           return BsonConvert.ToBson(msg);
         });
 
