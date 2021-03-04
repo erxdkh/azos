@@ -235,6 +235,15 @@ and the name of module or INamed entity must match if the 'Name' constraint was 
     public const string SECURITY_AUTHROIZATION_ERROR =
         "Authorization to '{0}' failed from '{1}'";
 
+    public const string SECURITY_IDP_UPSTREAM_CALL_ERROR =
+         "IDP upstream server call failure: {0}";
+
+    public const string SECURITY_IDP_PROTOCOL_ERROR =
+         "IDP upstream server protocol error: {0}";
+
+    public const string SECURITY_IDP_RESPONSE_DECIPHER_ERROR =
+    "IDP upstream server response payload could not be deciphered. Are the crypto message protection keys configured correctly?";
+
     public const string SECURITY_REPRESENT_CREDENTIALS_FORGOTTEN =
         "Credentials can not be represented as they are forgotten";
 
@@ -695,9 +704,26 @@ and the name of module or INamed entity must match if the 'Name' constraint was 
     public const string AST_BAD_IDENTIFIER_ERROR = "Bad identifier: '{0}'";
 
 
+    public const string ARCHIVE_VOLUME_HEADER_READ_ERROR = "The archive volume `{0}` header could not be mounted: {1}";
+    public const string ARCHIVE_PAGE_STATE_ERROR = "The archive page @0x{0:X4} offset must be in `{1}` state";
+    public const string ARCHIVE_ENCRYPTION_SCHEME_NOT_SUPPORTED_ERROR = "Archive encryption scheme `{0}` is not supported. Check algorithm configuration in app secman";
+    public const string ARCHIVE_COMPRESSION_SCHEME_NOT_SUPPORTED_ERROR = "Archive compression scheme `{0}` is not supported. This implementation supports: {1}";
+    public const string ARCHIVE_PREMATURE_EOF_ERROR = "Premature stream EOF while filling Page";
+    public const string ARCHIVE_PAGE_DECIPHER_INTEGRITY_ERROR = "Page decipher data failed integrity check. The data was either tampered or the encryption scheme is different from the one used during the creation of this archive";
+    public const string ARCHIVE_PAGE_DECIPHER_ERROR = "Page data decipher error: {0}";
+    public const string ARCHIVE_PAGE_BUFFER_MAX_LENGTH_ERROR = "Page data max buffer length of {0} bytes exceeded";
+    public const string ARCHIVE_PAGE_DECOMPRESSION_ERROR = "Page data decompression error: {0}";
+    public const string ARCHIVE_PAGE_EXACT_ID_ERROR = "Archive page could not be found by the exact pageId specified: @{0:x8}";
+
+
+    public const string ARCHIVE_APPENDER_CONTENT_TYPE_ERROR =
+      "Volume '{0}' content type `{1}` is not supported by {2}. Either use a different appender or create a volume of different content type";
+
+    public const string ARCHIVE_READER_CONTENT_TYPE_ERROR =
+      "Volume '{0}' content type `{1}` is not supported by {2}. Either use a different reader or create a volume of different content type";
+
     public const string CA_PROCESSOR_EXCEPTION_ERROR =
         "{0} processor {1} error: {2}";
-
 
     public const string SCHEMA_INCLUDE_FILE_DOSNT_EXIST_ERROR =
         "Relational schema include file does not exist: ";
@@ -852,6 +878,8 @@ and the name of module or INamed entity must match if the 'Name' constraint was 
 
 
     public const string FS_DUPLICATE_NAME_ERROR = "Can not have file system instance of type '{0}' with the name '{1}' as this name is already registered. ";
+
+    public const string FS_DIRECTORY_DOES_NOT_EXIST_ERROR = "File system directory `{0}` does not exist";
 
     public const string FS_SESSION_BAD_PARAMS_ERROR =
       "Can not create an instance of file system session '{0}'. Make sure that suitable derivative of FileSystemSessionConnectParams is passed for the particular file system";

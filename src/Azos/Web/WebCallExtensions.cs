@@ -12,6 +12,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 
+using Azos.Apps;
 using Azos.Data;
 using Azos.Serialization.JSON;
 
@@ -22,10 +23,54 @@ namespace Azos.Web
   /// </summary>
   public static class WebCallExtensions
   {
+    /// <summary> Marker interface for traits applicable to making web calls</summary>
+    public interface ICallerAspect { }
+
+    /// <summary> Indicates that the caller is capable of providing DistributedCallFlow context </summary>
+    public interface IDistributedCallFlowAspect : ICallerAspect
+    {
+      /// <summary> If non-empty provides header name to be used for sending DistributedCallFlow object, otherwise a default name is used</summary>
+      string DistributedCallFlowHeader {  get; }
+
+      /// <summary>
+      /// Gets the distributed call flow or NULL if not present or not enabled
+      /// </summary>
+      DistributedCallFlow GetDistributedCallFlow();
+    }
+
     /// <summary>
-    /// ISets maximum error content length in characters
+    /// Designates the caller as authentication provider for remote impersonation - provides
+    /// header name and header value if caller impersonation is used
+    /// </summary>
+    public interface IAuthImpersonationAspect : ICallerAspect
+    {
+      /// <summary>
+      /// When non empty provides header name used for impersonation, otherwise standard HTTP `Authorization` header is used
+      /// </summary>
+      string AuthImpersonationHeader {  get; }
+
+      /// <summary>
+      /// Gets auth header value if impersonation is used or null
+      /// </summary>
+      string GetAuthImpersonationHeader();
+    }
+
+
+    /// <summary>
+    /// Sets maximum error content length in characters
     /// </summary>
     public const int CALL_ERROR_CONTENT_MAX_LENGTH = 32 * 1024;
+
+
+    private const string SYSTOKEN_SCHEME = WebConsts.AUTH_SCHEME_SYSTOKEN + " ";
+    /// <summary>
+    /// Creates a header entry `Authorization: Systoken [token]` for the specified user object.
+    /// User object may not be null
+    /// </summary>
+    public static KeyValuePair<string, string> MakeSysTokenAuthHeader(this Security.User user)
+      =>  new KeyValuePair<string, string>(WebConsts.HTTP_HDR_AUTHORIZATION,
+                                           SYSTOKEN_SCHEME + user.NonNull(nameof(user)).AuthToken.ToString());
+
 
     /// <summary>
     /// Gets string response containing json and returns it as JsonDataMap
@@ -114,6 +159,10 @@ namespace Azos.Web
                                                                       bool fetchErrorContent = true,
                                                                       IEnumerable<KeyValuePair<string, string>> requestHeaders = null)
     {
+      client.NonNull(nameof(client));
+      method.NonNull(nameof(method));
+      uri.NonNull(nameof(uri));
+
       HttpContent content = null;
 
       if (body != null)
@@ -138,7 +187,7 @@ namespace Azos.Web
         }
       }
 
-      using (var request = new HttpRequestMessage(method.NonNull(nameof(method)), uri.NonBlank(nameof(uri))))
+      using (var request = new HttpRequestMessage(method, uri))
       {
         if (content != null)
           request.Content = content;
@@ -149,9 +198,29 @@ namespace Azos.Web
             request.Headers.Add(pair.Key, pair.Value);
         }
 
-        using (var response = await client.NonNull().SendAsync(request, fetchErrorContent ? HttpCompletionOption.ResponseContentRead
-                                                                                          : HttpCompletionOption.ResponseHeadersRead)
-                                                    .ConfigureAwait(false))
+        if (client is IDistributedCallFlowAspect dca)
+        {
+          var dcf = dca.GetDistributedCallFlow();
+          if (dcf != null)
+          {
+            var hdr = dca.DistributedCallFlowHeader.Default(CoreConsts.HTTP_HDR_DEFAULT_CALL_FLOW);
+            request.Headers.Add(hdr, dcf.ToHeaderValue());
+          }
+        }
+
+        if (client is IAuthImpersonationAspect aia)
+        {
+          var token = aia.GetAuthImpersonationHeader();
+          if (token.IsNotNullOrWhiteSpace())
+          {
+            var hdr = aia.AuthImpersonationHeader.Default(WebConsts.HTTP_HDR_AUTHORIZATION);
+            request.Headers.Add(hdr, token);
+          }
+        }
+
+        using (var response = await client.SendAsync(request, fetchErrorContent ? HttpCompletionOption.ResponseContentRead
+                                                                                : HttpCompletionOption.ResponseHeadersRead)
+                                          .ConfigureAwait(false))
         {
           var isSuccess = response.IsSuccessStatusCode;
           string raw = string.Empty;
@@ -197,6 +266,21 @@ namespace Azos.Web
       Aver.IsTrue(data.ContainsKey("data"), "no ['data'] key");
 
       return new Data.Business.ChangeResult(data);
+    }
+
+
+    /// <summary>
+    /// Processes the "wrap" Json protocol with JsonDataMap such as: '{OK: true, data: object}'
+    /// Throws averment exceptions if OK!=true, no 'data' key was returned.
+    /// The property 'data' may be NULL
+    /// </summary>
+    public static object UnwrapPayloadObject(this JsonDataMap data)
+    {
+      data.NonNull(nameof(data)).ExpectOK();
+
+      Aver.IsTrue(data.ContainsKey("data"), "no ['data'] key");
+      var result = data["data"];
+      return result;
     }
 
 

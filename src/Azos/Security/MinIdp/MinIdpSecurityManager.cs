@@ -16,9 +16,9 @@ using Azos.Log;
 namespace Azos.Security.MinIdp
 {
   /// <summary>
-  /// MinIdp Provides security manager implementation that authenticates and authorizes users via IMinIdpStore
+  /// MinIdp Provides security manager implementation that authenticates and authorizes users via IMinIdpStore implementation
   /// </summary>
-  public class MinIdpSecurityManager : DaemonWithInstrumentation<IApplicationComponent>, ISecurityManagerImplementation
+  public class MinIdpSecurityManager : DaemonWithInstrumentation<IApplicationComponent>, ISecurityManagerImplementation, IMinIdpStoreContainer
   {
     #region CONSTS
     public const string CONFIG_RIGHTS_SECTION = Rights.CONFIG_ROOT_SECTION;
@@ -170,7 +170,7 @@ namespace Azos.Security.MinIdp
 
     public void Authenticate(User user) => AuthenticateAsync(user).GetAwaiter().GetResult();
 
-    public async Task AuthenticateAsync(User user)
+    public virtual async Task AuthenticateAsync(User user)
     {
       if (user == null) return;
       var token = user.AuthToken;
@@ -179,9 +179,9 @@ namespace Azos.Security.MinIdp
       user.___update_status(reuser.Status, reuser.Name, reuser.Description, reuser.Rights, App.TimeSource.UTCNow);
     }
 
-    public Task<AccessLevel> AuthorizeAsync(User user, Permission permission) => Task.FromResult(Authorize(user, permission));
+    public virtual Task<AccessLevel> AuthorizeAsync(User user, Permission permission) => Task.FromResult(Authorize(user, permission));
 
-    public AccessLevel Authorize(User user, Permission permission)
+    public virtual AccessLevel Authorize(User user, Permission permission)
     {
       if (user == null || permission == null)
         throw new SecurityException(StringConsts.ARGUMENT_ERROR + GetType().Name + ".Authorize(user==null|permission==null)");
@@ -214,11 +214,14 @@ namespace Azos.Security.MinIdp
       var rights = Rights.None;
       if (credentials == null) credentials = BlankCredentials.Instance;
 
-      var cfg = data.Rights.AsJSONConfig(handling: ConvertErrorHandling.ReturnDefault);
-      if (cfg == null)
-        WriteLog(MessageType.Warning, nameof(MakeOkUser), "Rights could not be read for `{0}`@`{1}`".Args(credentials, Realm));
-      else
-        rights = new Rights(cfg.Configuration);
+      if (data.Rights.IsNotNullOrWhiteSpace())
+      {
+        var cfg = data.Rights.AsLaconicConfig(handling: ConvertErrorHandling.ReturnDefault);
+        if (cfg == null)
+          WriteLog(MessageType.Warning, nameof(MakeOkUser), "Rights could not be read for `{0}`@`{1}`".Args(credentials, Realm));
+        else
+          rights = new Rights(cfg.Configuration);
+      }
 
       return new User(credentials,
                       data.SysToken,

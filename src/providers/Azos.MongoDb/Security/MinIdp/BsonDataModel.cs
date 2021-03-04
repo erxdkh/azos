@@ -15,12 +15,18 @@ namespace Azos.Security.MinIdp
   /// </summary>
   internal static class BsonDataModel
   {
+    public const int FETCH_LIMIT_LIST = 1024;
+    public const string _ID = Query._ID;
+
+    public const int MAX_ID_LEN = 64;
+    public const int MAX_NOTE_LEN = 4 * 1024;
+    public const int MAX_DESCR_LEN = 256;
+    public const int MAX_NAME_LEN  = 64;
+    public const int MAX_PWD_LEN = 4 * 1024;
+
     public const string COLLECTION_LOGIN = "lin";
     public const string COLLECTION_USER = "usr";
     public const string COLLECTION_ROLE = "rol";
-
-
-    public const string FLD_DATAVERSION = "_v";
 
     public const string FLD_SYSID = "sysid";
     public const string FLD_STATUS = "status";
@@ -31,9 +37,9 @@ namespace Azos.Security.MinIdp
     public const string FLD_STARTUTC = "sutc";
     public const string FLD_ENDUTC = "eutc";
 
+    public const string FLD_ROLE = "role";
     public const string FLD_NAME = "name";
     public const string FLD_DESCRIPTION = "descr";
-    public const string FLD_SCREENNAME = "sname";
     public const string FLD_NOTE = "note";
 
 
@@ -42,7 +48,12 @@ namespace Azos.Security.MinIdp
 
     public static void ReadLogin(BSONDocument bson, MinIdpUserData data)
     {
-      if (bson[Query._ID] is BSONStringElement id) data.LoginId = id.Value;
+      if (bson[_ID] is BSONStringElement id)
+      {
+        data.LoginId = id.Value;
+        data.ScreenName = id.Value;
+      }
+
       if (bson[FLD_SYSID] is BSONInt64Element sysid) data.SysId = (ulong)sysid.Value;
       if (bson[FLD_PASSWORD] is BSONStringElement pwd) data.LoginPassword = pwd.Value;
 
@@ -52,22 +63,23 @@ namespace Azos.Security.MinIdp
 
     public static void ReadUser(BSONDocument bson, MinIdpUserData data)
     {
-      if (bson[Query._ID] is BSONInt64Element sysid) data.SysId = (ulong)sysid.Value;
+      if (bson[_ID] is BSONInt64Element sysid) data.SysId = (ulong)sysid.Value;
       if (bson[FLD_STATUS] is BSONInt32Element status) data.Status = (UserStatus)status.Value;
+      if (bson[FLD_ROLE] is BSONStringElement role) data.Role = role.Value;
 
       if (bson[FLD_CREATEUTC] is BSONDateTimeElement cdt) data.CreateUtc = cdt.Value;
       if (bson[FLD_STARTUTC] is BSONDateTimeElement sdt) data.StartUtc = sdt.Value;
       if (bson[FLD_ENDUTC] is BSONDateTimeElement edt) data.EndUtc = edt.Value;
 
-      if (bson[FLD_SCREENNAME] is BSONStringElement sname) data.ScreenName = sname.Value;
       if (bson[FLD_NAME] is BSONStringElement name) data.Name = name.Value;
       if (bson[FLD_DESCRIPTION] is BSONStringElement descr) data.Description = descr.Value;
       if (bson[FLD_NOTE] is BSONStringElement note) data.Note = note.Value;
+
     }
 
     public static void ReadRole(BSONDocument bson, MinIdpUserData data)
     {
-      if (bson[Query._ID] is BSONStringElement role) data.Role = role.Value;
+      if (bson[_ID] is BSONStringElement role) data.Role = role.Value;
       if (bson[FLD_RIGHTS] is BSONStringElement rights) data.Rights = rights.Value;
     }
   }

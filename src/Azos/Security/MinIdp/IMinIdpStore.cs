@@ -22,11 +22,26 @@ namespace Azos.Security.MinIdp
   /// The activity time span filtering performed by the store is optional as the security manager filters the dates anyway
   /// as of the calling UTC now stamp.
   /// </remarks>
-  public interface IMinIdpStore : IApplicationComponent
+  public interface IMinIdpStore
   {
+    /// <summary>
+    /// Returns an optional algorithm instance which is used by the store to protect its payload when it is set, or null.
+    /// This is used for transmission of the data returned by the store
+    /// </summary>
+    ICryptoMessageAlgorithm MessageProtectionAlgorithm { get; }
+
     Task<MinIdpUserData> GetByIdAsync(Atom realm, string id);
     Task<MinIdpUserData> GetByUriAsync(Atom realm, string uri);
     Task<MinIdpUserData> GetBySysAsync(Atom realm, string sysToken);
+  }
+
+
+  /// <summary>
+  /// Entities which have IMinIdpStore
+  /// </summary>
+  public interface IMinIdpStoreContainer
+  {
+    IMinIdpStore Store { get; }
   }
 
   /// <summary>
@@ -42,14 +57,15 @@ namespace Azos.Security.MinIdp
   /// in various public contexts as it represents and internal data tuple for MinIdp implementation
   /// </summary>
   [Bix("21AF1418-ED04-40E7-9B71-0B1EAAA8AE33")]
-  [Schema(Description = @"Sets contract for DTO - data stored in MinIdp system. This doc is not meant to be exposed 
+  [Schema(Description = @"Sets contract for DTO - data stored in MinIdp system. This doc is not meant to be exposed
   in various public contexts as it represents and internal data tuple for MinIdp implementation")]
   public sealed class MinIdpUserData : TypedDoc
   {
-    public SysAuthToken SysToken => new SysAuthToken(Realm.Value, SysId.ToString());
+    public SysAuthToken SysToken => new SysAuthToken(Realm.Value.Default("?"), SysTokenData.Default("?"));
 
     [Field] public ulong SysId        { get; set; }//tbl_user.pk <--- clustered primary key BIGINT
     [Field] public Atom  Realm        { get; set; }//tbl_user.realm  vchar(8)
+    [Field] public string  SysTokenData { get; set; }//set by store implementation
     [Field] public UserStatus Status  { get; set; }//tbl_user.stat tinyint 1 byte
     [Field] public DateTime CreateUtc { get; set; }//tbl_user.cd
     [Field] public DateTime StartUtc  { get; set; }//tbl_user.sd
